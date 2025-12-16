@@ -1,11 +1,21 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const LobbyCard = () => {
+  const navigate = useNavigate();
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState("");
+  const [numBots, setNumBots] = useState("3");
 
   const handleCreateRoom = () => {
     if (!playerName.trim()) {
@@ -16,10 +26,8 @@ export const LobbyCard = () => {
       });
       return;
     }
-    toast({
-      title: "Room Created!",
-      description: `Welcome, ${playerName}! Your room is ready.`,
-    });
+    // Start local game with bots
+    navigate(`/game?name=${encodeURIComponent(playerName)}&bots=${numBots}`);
   };
 
   const handleJoinRoom = () => {
@@ -40,8 +48,8 @@ export const LobbyCard = () => {
       return;
     }
     toast({
-      title: "Joining Room...",
-      description: `Looking for room ${roomCode.toUpperCase()}...`,
+      title: "Coming Soon",
+      description: "Multiplayer rooms will be available soon!",
     });
   };
 
@@ -63,6 +71,23 @@ export const LobbyCard = () => {
             />
           </div>
 
+          {/* Number of Bots */}
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground">Opponents</label>
+            <Select value={numBots} onValueChange={setNumBots}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select opponents" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 Opponent</SelectItem>
+                <SelectItem value="2">2 Opponents</SelectItem>
+                <SelectItem value="3">3 Opponents</SelectItem>
+                <SelectItem value="4">4 Opponents</SelectItem>
+                <SelectItem value="5">5 Opponents</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Create Room Button */}
           <Button
             variant="gold"
@@ -70,7 +95,7 @@ export const LobbyCard = () => {
             className="w-full"
             onClick={handleCreateRoom}
           >
-            Create Room
+            Start Game
           </Button>
 
           {/* Divider */}

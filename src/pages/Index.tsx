@@ -1,9 +1,14 @@
+import { useNavigate } from "react-router-dom";
 import { CrownIcon } from "@/components/CrownIcon";
 import { GameStats } from "@/components/GameStats";
 import { LobbyCard } from "@/components/LobbyCard";
 import { RulesDialog } from "@/components/RulesDialog";
+import { Button } from "@/components/ui/button";
+import { TestTube } from "lucide-react";
 
 const Index = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-12">
       {/* Hero Section */}
@@ -28,9 +33,17 @@ const Index = () => {
         <LobbyCard />
       </div>
 
-      {/* Rules Button */}
-      <div className="mt-8 animate-fade-in" style={{ animationDelay: "0.4s" }}>
+      {/* Action Buttons */}
+      <div className="flex gap-4 mt-8 animate-fade-in" style={{ animationDelay: "0.4s" }}>
         <RulesDialog />
+        <Button
+          variant="ghost"
+          className="gap-2 text-muted-foreground hover:text-foreground"
+          onClick={() => navigate("/test")}
+        >
+          <TestTube className="w-4 h-4" />
+          Test Engine
+        </Button>
       </div>
     </div>
   );
