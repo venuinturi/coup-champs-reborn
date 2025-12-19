@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { GameState, ActionType, Character } from "@/lib/gameTypes";
 import {
   startAction,
@@ -19,6 +19,12 @@ interface GameBoardProps {
   localPlayerId: string;
   onGameEnd?: (winnerId: string) => void;
   onRestart?: () => void;
+  // Multiplayer callbacks (optional - if not provided, uses local state)
+  onAction?: (actionType: ActionType, targetId?: string) => void;
+  onChallenge?: () => void;
+  onBlock?: (character: Character) => void;
+  onPass?: () => void;
+  isMultiplayer?: boolean;
 }
 
 export const GameBoard = ({
@@ -26,10 +32,27 @@ export const GameBoard = ({
   localPlayerId,
   onGameEnd,
   onRestart,
+  onAction: externalOnAction,
+  onChallenge: externalOnChallenge,
+  onBlock: externalOnBlock,
+  onPass: externalOnPass,
+  isMultiplayer = false,
 }: GameBoardProps) => {
   const [gameState, setGameState] = useState<GameState>(initialState);
 
+  // Sync state with initialState when it changes (for multiplayer)
+  useEffect(() => {
+    if (isMultiplayer) {
+      setGameState(initialState);
+    }
+  }, [initialState, isMultiplayer]);
+
   const handleAction = useCallback((actionType: ActionType, targetId?: string) => {
+    if (externalOnAction) {
+      externalOnAction(actionType, targetId);
+      return;
+    }
+
     try {
       const newState = startAction(gameState, {
         type: actionType,
@@ -48,9 +71,14 @@ export const GameBoard = ({
         variant: "destructive",
       });
     }
-  }, [gameState, localPlayerId, onGameEnd]);
+  }, [gameState, localPlayerId, onGameEnd, externalOnAction]);
 
   const handleChallenge = useCallback(() => {
+    if (externalOnChallenge) {
+      externalOnChallenge();
+      return;
+    }
+
     try {
       const newState = challenge(gameState, localPlayerId);
       setGameState(newState);
@@ -65,9 +93,14 @@ export const GameBoard = ({
         variant: "destructive",
       });
     }
-  }, [gameState, localPlayerId, onGameEnd]);
+  }, [gameState, localPlayerId, onGameEnd, externalOnChallenge]);
 
   const handleBlock = useCallback((character: Character) => {
+    if (externalOnBlock) {
+      externalOnBlock(character);
+      return;
+    }
+
     try {
       const newState = block(gameState, localPlayerId, character);
       setGameState(newState);
@@ -78,9 +111,14 @@ export const GameBoard = ({
         variant: "destructive",
       });
     }
-  }, [gameState, localPlayerId]);
+  }, [gameState, localPlayerId, externalOnBlock]);
 
   const handlePass = useCallback(() => {
+    if (externalOnPass) {
+      externalOnPass();
+      return;
+    }
+
     try {
       const newState = pass(gameState, localPlayerId);
       setGameState(newState);
@@ -95,7 +133,7 @@ export const GameBoard = ({
         variant: "destructive",
       });
     }
-  }, [gameState, localPlayerId, onGameEnd]);
+  }, [gameState, localPlayerId, onGameEnd, externalOnPass]);
 
   const winner = gameState.winner
     ? gameState.players.find((p) => p.id === gameState.winner)
