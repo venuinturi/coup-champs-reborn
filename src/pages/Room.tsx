@@ -24,18 +24,19 @@ const Room = () => {
     leaveRoom,
   } = useMultiplayer();
 
-  const [isSubscribed, setIsSubscribed] = useState(false);
-
-  // Subscribe to room updates
+  // Subscribe to room updates - only run once on mount
   useEffect(() => {
-    if (roomCode && !isSubscribed) {
-      const unsubscribe = subscribeToRoom(roomCode);
-      setIsSubscribed(true);
-      return () => {
-        if (unsubscribe) unsubscribe();
-      };
-    }
-  }, [roomCode, subscribeToRoom, isSubscribed]);
+    if (!roomCode) return;
+    
+    console.log('Room component mounting, subscribing to:', roomCode);
+    const unsubscribe = subscribeToRoom(roomCode);
+    
+    return () => {
+      console.log('Room component unmounting, cleaning up');
+      if (unsubscribe) unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode]); // Only depend on roomCode, not subscribeToRoom
 
   // Navigate to game when it starts
   useEffect(() => {
