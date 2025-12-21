@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { GameState } from '@/lib/gameTypes';
 import { toast } from '@/hooks/use-toast';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface RoomPlayer {
   id: string;
@@ -49,8 +50,24 @@ export const useMultiplayer = () => {
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const playerId = getOrCreatePlayerId();
+  
+  const playerId = useRef(getOrCreatePlayerId()).current;
   const roomIdRef = useRef<string | null>(null);
+  const channelsRef = useRef<RealtimeChannel[]>([]);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Cleanup all channels
+      channelsRef.current.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
+    };
+  }, []);
 
   // Create a new room
   const createRoom = useCallback(async (hostName: string): Promise<string | null> => {
@@ -91,7 +108,9 @@ export const useMultiplayer = () => {
       return roomCode;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create room';
-      setError(message);
+      if (isMountedRef.current) {
+        setError(message);
+      }
       toast({
         title: 'Error',
         description: message,
@@ -99,7 +118,9 @@ export const useMultiplayer = () => {
       });
       return null;
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [playerId]);
 
@@ -156,7 +177,9 @@ export const useMultiplayer = () => {
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to join room';
-      setError(message);
+      if (isMountedRef.current) {
+        setError(message);
+      }
       toast({
         title: 'Error',
         description: message,
@@ -164,7 +187,9 @@ export const useMultiplayer = () => {
       });
       return false;
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [playerId]);
 
@@ -176,7 +201,7 @@ export const useMultiplayer = () => {
       .eq('room_id', roomId)
       .order('joined_at', { ascending: true });
 
-    if (playersData) {
+    if (playersData && isMountedRef.current) {
       console.log('Players fetched:', playersData.length);
       setPlayers(playersData as RoomPlayer[]);
     }
@@ -186,6 +211,12 @@ export const useMultiplayer = () => {
   const subscribeToRoom = useCallback((roomCode: string) => {
     console.log('Subscribing to room:', roomCode);
 
+    // Cleanup any existing channels first
+    channelsRef.current.forEach(channel => {
+      supabase.removeChannel(channel);
+    });
+    channelsRef.current = [];
+
     // Initial fetch
     const fetchRoom = async () => {
       const { data: roomData } = await supabase
@@ -194,7 +225,7 @@ export const useMultiplayer = () => {
         .eq('room_code', roomCode)
         .single();
 
-      if (roomData) {
+      if (roomData && isMountedRef.current) {
         console.log('Room fetched:', roomData.id);
         roomIdRef.current = roomData.id;
         
@@ -211,7 +242,7 @@ export const useMultiplayer = () => {
 
     // Subscribe to room changes
     const roomChannel = supabase
-      .channel(`room_updates_${roomCode}`)
+      .channel(`room_updates_${roomCode}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -222,7 +253,7 @@ export const useMultiplayer = () => {
         },
         (payload) => {
           console.log('Room update received:', payload.eventType);
-          if (payload.new) {
+          if (payload.new && isMountedRef.current) {
             const newRoom = payload.new as any;
             setRoom({
               ...newRoom,
@@ -235,10 +266,11 @@ export const useMultiplayer = () => {
         console.log('Room channel status:', status);
       });
 
-    // Subscribe to player changes - using a separate channel
-    // We'll listen to all player changes and filter by room_id
+    channelsRef.current.push(roomChannel);
+
+    // Subscribe to player changes
     const playersChannel = supabase
-      .channel(`players_updates_${roomCode}`)
+      .channel(`players_updates_${roomCode}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -247,9 +279,8 @@ export const useMultiplayer = () => {
           table: 'room_players',
         },
         async (payload) => {
-          console.log('Players update received:', payload.eventType, payload);
-          // Re-fetch players when any change happens
-          if (roomIdRef.current) {
+          console.log('Players update received:', payload.eventType);
+          if (roomIdRef.current && isMountedRef.current) {
             await fetchPlayers(roomIdRef.current);
           }
         }
@@ -258,24 +289,31 @@ export const useMultiplayer = () => {
         console.log('Players channel status:', status);
       });
 
+    channelsRef.current.push(playersChannel);
+
     return () => {
       console.log('Cleaning up subscriptions');
-      supabase.removeChannel(roomChannel);
-      supabase.removeChannel(playersChannel);
+      channelsRef.current.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
     };
   }, [fetchPlayers]);
 
   // Toggle ready status
   const toggleReady = useCallback(async () => {
-    if (!room) return;
+    const currentRoom = room;
+    const currentPlayers = players;
+    
+    if (!currentRoom) return;
 
-    const player = players.find(p => p.player_id === playerId);
+    const player = currentPlayers.find(p => p.player_id === playerId);
     if (!player) return;
 
     const { error } = await supabase
       .from('room_players')
       .update({ is_ready: !player.is_ready })
-      .eq('room_id', room.id)
+      .eq('room_id', currentRoom.id)
       .eq('player_id', playerId);
 
     if (error) {
@@ -287,7 +325,8 @@ export const useMultiplayer = () => {
 
   // Start the game (host only)
   const startGame = useCallback(async (gameState: GameState) => {
-    if (!room) return false;
+    const currentRoom = room;
+    if (!currentRoom) return false;
 
     try {
       console.log('Starting game with state:', gameState);
@@ -297,7 +336,7 @@ export const useMultiplayer = () => {
           status: 'playing',
           game_state: gameState as any,
         })
-        .eq('id', room.id);
+        .eq('id', currentRoom.id);
 
       if (error) throw error;
       console.log('Game started successfully');
@@ -310,7 +349,8 @@ export const useMultiplayer = () => {
 
   // Update game state
   const updateGameState = useCallback(async (gameState: GameState) => {
-    if (!room) return false;
+    const currentRoom = room;
+    if (!currentRoom) return false;
 
     try {
       const { error } = await supabase
@@ -319,7 +359,7 @@ export const useMultiplayer = () => {
           game_state: JSON.parse(JSON.stringify(gameState)),
           status: gameState.winner ? 'finished' : 'playing',
         })
-        .eq('id', room.id);
+        .eq('id', currentRoom.id);
 
       if (error) throw error;
       return true;
@@ -331,16 +371,19 @@ export const useMultiplayer = () => {
 
   // Leave room
   const leaveRoom = useCallback(async () => {
-    if (!room) return;
+    const currentRoom = room;
+    if (!currentRoom) return;
 
     await supabase
       .from('room_players')
       .delete()
-      .eq('room_id', room.id)
+      .eq('room_id', currentRoom.id)
       .eq('player_id', playerId);
 
-    setRoom(null);
-    setPlayers([]);
+    if (isMountedRef.current) {
+      setRoom(null);
+      setPlayers([]);
+    }
   }, [room, playerId]);
 
   return {
