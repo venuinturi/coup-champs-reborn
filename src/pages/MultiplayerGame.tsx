@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GameState, ActionType, Character } from '@/lib/gameTypes';
 import {
@@ -6,11 +6,11 @@ import {
   challenge,
   block,
   pass,
-  getCurrentPlayer,
 } from '@/lib/gameEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { GameBoard } from '@/components/game/GameBoard';
 import { toast } from '@/hooks/use-toast';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 const MultiplayerGame = () => {
   const navigate = useNavigate();
@@ -21,6 +21,9 @@ const MultiplayerGame = () => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [localPlayerId, setLocalPlayerId] = useState<string>('');
+  
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const isMountedRef = useRef(true);
 
   // Get player ID from localStorage
   useEffect(() => {
@@ -29,6 +32,7 @@ const MultiplayerGame = () => {
       playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       localStorage.setItem('coup_player_id', playerId);
     }
+    console.log('Local player ID:', playerId);
     setLocalPlayerId(playerId);
   }, []);
 
@@ -39,7 +43,11 @@ const MultiplayerGame = () => {
       return;
     }
 
+    isMountedRef.current = true;
+
     const fetchAndSubscribe = async () => {
+      console.log('Fetching room:', roomCode);
+      
       // Fetch room
       const { data: roomData, error } = await supabase
         .from('game_rooms')
@@ -48,6 +56,7 @@ const MultiplayerGame = () => {
         .single();
 
       if (error || !roomData) {
+        console.error('Room fetch error:', error);
         toast({
           title: 'Error',
           description: 'Room not found',
@@ -57,14 +66,24 @@ const MultiplayerGame = () => {
         return;
       }
 
-      setRoomId(roomData.id);
-      if (roomData.game_state) {
-        setGameState(roomData.game_state as unknown as GameState);
+      console.log('Room fetched, status:', roomData.status);
+      
+      if (isMountedRef.current) {
+        setRoomId(roomData.id);
+        if (roomData.game_state) {
+          console.log('Setting initial game state');
+          setGameState(roomData.game_state as unknown as GameState);
+        }
+      }
+
+      // Clean up any existing channel
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
       }
 
       // Subscribe to game state changes
       const channel = supabase
-        .channel(`game_${roomCode}`)
+        .channel(`multiplayer_game_${roomCode}_${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -74,41 +93,70 @@ const MultiplayerGame = () => {
             filter: `room_code=eq.${roomCode}`,
           },
           (payload) => {
-            console.log('Game state update:', payload);
+            console.log('Game state update received:', payload.eventType);
             const newRoom = payload.new as any;
-            if (newRoom.game_state) {
+            if (newRoom.game_state && isMountedRef.current) {
+              console.log('Updating game state from realtime');
               setGameState(newRoom.game_state as GameState);
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Multiplayer game channel status:', status);
+        });
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      channelRef.current = channel;
     };
 
     fetchAndSubscribe();
+
+    return () => {
+      console.log('MultiplayerGame unmounting, cleaning up');
+      isMountedRef.current = false;
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
   }, [roomCode, navigate]);
 
   // Update game state in database
   const updateGameState = useCallback(async (newState: GameState) => {
-    if (!roomId) return;
+    if (!roomId) {
+      console.error('No room ID, cannot update game state');
+      return;
+    }
 
+    console.log('Updating game state in database');
+    
+    // Update local state immediately for responsiveness
     setGameState(newState);
 
-    await supabase
+    const { error } = await supabase
       .from('game_rooms')
       .update({
         game_state: newState as any,
         status: newState.winner ? 'finished' : 'playing',
       })
       .eq('id', roomId);
+
+    if (error) {
+      console.error('Failed to update game state:', error);
+      toast({
+        title: 'Sync Error',
+        description: 'Failed to sync game state',
+        variant: 'destructive',
+      });
+    } else {
+      console.log('Game state updated successfully');
+    }
   }, [roomId]);
 
   // Handle player action
   const handleAction = useCallback(async (actionType: ActionType, targetId?: string) => {
     if (!gameState) return;
+
+    console.log('Action:', actionType, 'Target:', targetId, 'Player:', localPlayerId);
 
     try {
       const newState = startAction(gameState, {
@@ -118,6 +166,7 @@ const MultiplayerGame = () => {
       });
       await updateGameState(newState);
     } catch (error) {
+      console.error('Action error:', error);
       toast({
         title: 'Invalid Action',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -130,10 +179,13 @@ const MultiplayerGame = () => {
   const handleChallenge = useCallback(async () => {
     if (!gameState) return;
 
+    console.log('Challenge by:', localPlayerId);
+
     try {
       const newState = challenge(gameState, localPlayerId);
       await updateGameState(newState);
     } catch (error) {
+      console.error('Challenge error:', error);
       toast({
         title: 'Challenge Failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -146,10 +198,13 @@ const MultiplayerGame = () => {
   const handleBlock = useCallback(async (character: Character) => {
     if (!gameState) return;
 
+    console.log('Block with:', character, 'by:', localPlayerId);
+
     try {
       const newState = block(gameState, localPlayerId, character);
       await updateGameState(newState);
     } catch (error) {
+      console.error('Block error:', error);
       toast({
         title: 'Block Failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -162,10 +217,13 @@ const MultiplayerGame = () => {
   const handlePass = useCallback(async () => {
     if (!gameState) return;
 
+    console.log('Pass by:', localPlayerId);
+
     try {
       const newState = pass(gameState, localPlayerId);
       await updateGameState(newState);
     } catch (error) {
+      console.error('Pass error:', error);
       toast({
         title: 'Pass Failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -198,6 +256,11 @@ const MultiplayerGame = () => {
       </div>
     );
   }
+
+  // Debug: show current player info
+  const currentPlayerIndex = gameState.currentPlayerIndex;
+  const currentPlayer = gameState.players[currentPlayerIndex];
+  console.log('Current turn:', currentPlayer?.name, 'Local player:', localPlayerId, 'Is my turn:', currentPlayer?.id === localPlayerId);
 
   return (
     <GameBoard
