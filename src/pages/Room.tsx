@@ -40,7 +40,7 @@ const Room = () => {
   // Navigate to game when it starts
   useEffect(() => {
     if (room?.status === 'playing' && room.game_state) {
-      navigate(`/game?room=${roomCode}&name=${encodeURIComponent(playerName)}`);
+      navigate(`/multiplayer?room=${roomCode}&name=${encodeURIComponent(playerName)}`);
     }
   }, [room?.status, room?.game_state, roomCode, playerName, navigate]);
 

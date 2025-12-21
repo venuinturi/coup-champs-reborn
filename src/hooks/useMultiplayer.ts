@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { GameState } from '@/lib/gameTypes';
 import { toast } from '@/hooks/use-toast';
@@ -50,6 +50,7 @@ export const useMultiplayer = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const playerId = getOrCreatePlayerId();
+  const roomIdRef = useRef<string | null>(null);
 
   // Create a new room
   const createRoom = useCallback(async (hostName: string): Promise<string | null> => {
@@ -167,6 +168,20 @@ export const useMultiplayer = () => {
     }
   }, [playerId]);
 
+  // Fetch players for a room
+  const fetchPlayers = useCallback(async (roomId: string) => {
+    const { data: playersData } = await supabase
+      .from('room_players')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('joined_at', { ascending: true });
+
+    if (playersData) {
+      console.log('Players fetched:', playersData.length);
+      setPlayers(playersData as RoomPlayer[]);
+    }
+  }, []);
+
   // Subscribe to room updates
   const subscribeToRoom = useCallback((roomCode: string) => {
     console.log('Subscribing to room:', roomCode);
@@ -180,20 +195,15 @@ export const useMultiplayer = () => {
         .single();
 
       if (roomData) {
+        console.log('Room fetched:', roomData.id);
+        roomIdRef.current = roomData.id;
+        
         setRoom({
           ...roomData,
           game_state: roomData.game_state as unknown as GameState | null,
         } as GameRoom);
 
-        const { data: playersData } = await supabase
-          .from('room_players')
-          .select('*')
-          .eq('room_id', roomData.id)
-          .order('joined_at', { ascending: true });
-
-        if (playersData) {
-          setPlayers(playersData as RoomPlayer[]);
-        }
+        await fetchPlayers(roomData.id);
       }
     };
 
@@ -201,7 +211,7 @@ export const useMultiplayer = () => {
 
     // Subscribe to room changes
     const roomChannel = supabase
-      .channel(`room_${roomCode}`)
+      .channel(`room_updates_${roomCode}`)
       .on(
         'postgres_changes',
         {
@@ -211,7 +221,7 @@ export const useMultiplayer = () => {
           filter: `room_code=eq.${roomCode}`,
         },
         (payload) => {
-          console.log('Room update:', payload);
+          console.log('Room update received:', payload.eventType);
           if (payload.new) {
             const newRoom = payload.new as any;
             setRoom({
@@ -221,29 +231,39 @@ export const useMultiplayer = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Room channel status:', status);
+      });
 
-    // We need a separate approach for players since they're linked by room_id
-    // Poll for player changes every 2 seconds as fallback
-    const pollPlayers = setInterval(async () => {
-      if (room?.id) {
-        const { data: playersData } = await supabase
-          .from('room_players')
-          .select('*')
-          .eq('room_id', room.id)
-          .order('joined_at', { ascending: true });
-
-        if (playersData) {
-          setPlayers(playersData as RoomPlayer[]);
+    // Subscribe to player changes - using a separate channel
+    // We'll listen to all player changes and filter by room_id
+    const playersChannel = supabase
+      .channel(`players_updates_${roomCode}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_players',
+        },
+        async (payload) => {
+          console.log('Players update received:', payload.eventType, payload);
+          // Re-fetch players when any change happens
+          if (roomIdRef.current) {
+            await fetchPlayers(roomIdRef.current);
+          }
         }
-      }
-    }, 2000);
+      )
+      .subscribe((status) => {
+        console.log('Players channel status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up subscriptions');
       supabase.removeChannel(roomChannel);
-      clearInterval(pollPlayers);
+      supabase.removeChannel(playersChannel);
     };
-  }, [room?.id]);
+  }, [fetchPlayers]);
 
   // Toggle ready status
   const toggleReady = useCallback(async () => {
@@ -252,11 +272,17 @@ export const useMultiplayer = () => {
     const player = players.find(p => p.player_id === playerId);
     if (!player) return;
 
-    await supabase
+    const { error } = await supabase
       .from('room_players')
       .update({ is_ready: !player.is_ready })
       .eq('room_id', room.id)
       .eq('player_id', playerId);
+
+    if (error) {
+      console.error('Toggle ready error:', error);
+    } else {
+      console.log('Ready status toggled');
+    }
   }, [room, players, playerId]);
 
   // Start the game (host only)
@@ -264,6 +290,7 @@ export const useMultiplayer = () => {
     if (!room) return false;
 
     try {
+      console.log('Starting game with state:', gameState);
       const { error } = await supabase
         .from('game_rooms')
         .update({
@@ -273,6 +300,7 @@ export const useMultiplayer = () => {
         .eq('id', room.id);
 
       if (error) throw error;
+      console.log('Game started successfully');
       return true;
     } catch (err) {
       console.error('Failed to start game:', err);
