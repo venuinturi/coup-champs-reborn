@@ -61,6 +61,9 @@ const Room = () => {
   };
 
   const handleStartGame = async () => {
+    console.log('handleStartGame called');
+    console.log('Players:', players.length, 'All ready:', players.every(p => p.is_ready));
+    
     if (players.length < 2) {
       toast({
         title: 'Not enough players',
@@ -70,8 +73,8 @@ const Room = () => {
       return;
     }
 
-    const allReady = players.every(p => p.is_ready);
-    if (!allReady) {
+    const allPlayersReady = players.every(p => p.is_ready);
+    if (!allPlayersReady) {
       toast({
         title: 'Players not ready',
         description: 'All players must be ready to start',
@@ -82,6 +85,7 @@ const Room = () => {
 
     // Create game with player names
     const playerNames = players.map(p => p.player_name);
+    console.log('Creating game with players:', playerNames);
     const gameState = createGame(playerNames);
     
     // Map player IDs correctly
@@ -90,11 +94,20 @@ const Room = () => {
       id: players[index].player_id,
     }));
 
+    console.log('Game state created:', gameState);
     const success = await startGame(gameState);
+    console.log('Start game result:', success);
+    
     if (success) {
       toast({
         title: 'Game Started!',
         description: 'The game is beginning...',
+      });
+    } else {
+      toast({
+        title: 'Failed to start game',
+        description: 'Please try again',
+        variant: 'destructive',
       });
     }
   };
