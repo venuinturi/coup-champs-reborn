@@ -25,6 +25,7 @@ interface ActionPanelProps {
   onChallenge: () => void;
   onBlock: (character: Character) => void;
   onPass: () => void;
+  onChooseCardToLose?: (card: Character) => void;
 }
 
 const ACTION_LABELS: Record<ActionType, { name: string; description: string }> = {
@@ -44,6 +45,7 @@ export const ActionPanel = ({
   onChallenge,
   onBlock,
   onPass,
+  onChooseCardToLose,
 }: ActionPanelProps) => {
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
   const [showTargetDialog, setShowTargetDialog] = useState(false);
@@ -129,6 +131,41 @@ export const ActionPanel = ({
           </DialogContent>
         </Dialog>
       </>
+    );
+  }
+
+  // Render card selection for losing influence
+  if (pendingAction?.phase === 'lose_influence' && 
+      pendingAction.playerLosingInfluence === localPlayerId &&
+      localPlayer) {
+    return (
+      <div className="bg-card border border-destructive rounded-xl p-4">
+        <h3 className="font-display text-lg text-foreground mb-2">
+          Choose a Card to Lose
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          You must reveal and lose one of your influence cards.
+        </p>
+        <div className="flex flex-wrap gap-3 justify-center">
+          {localPlayer.influences.map((card, idx) => (
+            <Button
+              key={idx}
+              variant="destructive"
+              className="flex flex-col h-auto py-3 px-6"
+              onClick={() => onChooseCardToLose?.(card)}
+            >
+              <span className="text-2xl mb-1">
+                {card === 'Duke' && '👑'}
+                {card === 'Assassin' && '🗡️'}
+                {card === 'Captain' && '⚓'}
+                {card === 'Ambassador' && '📜'}
+                {card === 'Contessa' && '💎'}
+              </span>
+              <span className="font-semibold">{card}</span>
+            </Button>
+          ))}
+        </div>
+      </div>
     );
   }
 

@@ -32,11 +32,13 @@ export interface GameAction {
 // Pending action state
 export interface PendingAction {
   action: GameAction;
-  phase: 'action' | 'challenge_action' | 'block' | 'challenge_block' | 'resolve';
+  phase: 'action' | 'challenge_action' | 'block' | 'challenge_block' | 'resolve' | 'lose_influence';
   blockerId?: string;
   blockerCharacter?: Character;
   challengerId?: string;
   waitingForPlayers: string[];
+  playerLosingInfluence?: string; // Player who needs to choose a card to lose
+  afterLoseInfluence?: 'resolve_action' | 'next_turn' | 'block_succeeds'; // What happens after losing influence
 }
 
 // Game state
