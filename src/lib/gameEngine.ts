@@ -217,9 +217,8 @@ export const challenge = (state: GameState, challengerId: string): GameState => 
   const hasCharacter = target.influences.includes(claimedCharacter);
 
   if (hasCharacter) {
-    // Challenge fails - challenger loses influence
+    // Challenge fails - challenger needs to choose which card to lose
     newState = addLog(newState, `${target.name} reveals ${claimedCharacter}! Challenge failed.`, 'reveal');
-    newState = loseInfluence(newState, challengerId, null);
     
     // Target shuffles revealed card back and draws new one
     const targetIndex = newState.players.findIndex(p => p.id === targetId);
@@ -238,26 +237,117 @@ export const challenge = (state: GameState, challengerId: string): GameState => 
       ],
     };
 
-    // If challenge was on action, action proceeds
-    if (phase === 'challenge_action') {
-      return resolveAction(newState, action);
-    } else {
-      // Block succeeds
-      return nextTurn(newState);
+    // If challenger has only 1 influence, lose it automatically
+    if (challenger.influences.length === 1) {
+      newState = loseInfluenceDirectly(newState, challengerId, challenger.influences[0]);
+      if (phase === 'challenge_action') {
+        return resolveAction(newState, action);
+      } else {
+        return nextTurn(newState);
+      }
     }
-  } else {
-    // Challenge succeeds - target loses influence
-    newState = addLog(newState, `${target.name} doesn't have ${claimedCharacter}! Challenge succeeded.`, 'reveal');
-    newState = loseInfluence(newState, targetId, null);
 
-    if (phase === 'challenge_action') {
-      // Action fails
-      return nextTurn(newState);
-    } else {
-      // Block fails, action proceeds
-      return resolveAction(newState, action);
+    // Challenger must choose which card to lose
+    return {
+      ...newState,
+      pendingAction: {
+        ...state.pendingAction,
+        phase: 'lose_influence',
+        playerLosingInfluence: challengerId,
+        afterLoseInfluence: phase === 'challenge_action' ? 'resolve_action' : 'block_succeeds',
+        waitingForPlayers: [challengerId],
+      },
+    };
+  } else {
+    // Challenge succeeds - target needs to choose which card to lose
+    newState = addLog(newState, `${target.name} doesn't have ${claimedCharacter}! Challenge succeeded.`, 'reveal');
+
+    // If target has only 1 influence, lose it automatically
+    if (target.influences.length === 1) {
+      newState = loseInfluenceDirectly(newState, targetId, target.influences[0]);
+      if (phase === 'challenge_action') {
+        return nextTurn(newState);
+      } else {
+        return resolveAction(newState, action);
+      }
     }
+
+    // Target must choose which card to lose
+    return {
+      ...newState,
+      pendingAction: {
+        ...state.pendingAction,
+        phase: 'lose_influence',
+        playerLosingInfluence: targetId,
+        afterLoseInfluence: phase === 'challenge_action' ? 'next_turn' : 'resolve_action',
+        waitingForPlayers: [targetId],
+      },
+    };
   }
+};
+
+// Choose which card to lose (called when player selects a card)
+export const chooseCardToLose = (state: GameState, playerId: string, card: Character): GameState => {
+  if (!state.pendingAction) throw new Error('No pending action');
+  if (state.pendingAction.phase !== 'lose_influence') throw new Error('Not in lose_influence phase');
+  if (state.pendingAction.playerLosingInfluence !== playerId) throw new Error('Not your turn to lose influence');
+
+  const player = getPlayer(state, playerId);
+  if (!player) throw new Error('Player not found');
+  if (!player.influences.includes(card)) throw new Error('You do not have that card');
+
+  let newState = loseInfluenceDirectly(state, playerId, card);
+  const { action, afterLoseInfluence } = state.pendingAction;
+
+  switch (afterLoseInfluence) {
+    case 'resolve_action':
+      return resolveAction(newState, action);
+    case 'next_turn':
+      return nextTurn(newState);
+    case 'block_succeeds':
+      return nextTurn(addLog(newState, 'Block successful!', 'system'));
+    default:
+      return nextTurn(newState);
+  }
+};
+
+// Internal function to directly lose an influence without player choice
+const loseInfluenceDirectly = (state: GameState, playerId: string, card: Character): GameState => {
+  const playerIndex = state.players.findIndex(p => p.id === playerId);
+  const player = state.players[playerIndex];
+  
+  if (player.influences.length === 0) return state;
+
+  const cardIndex = player.influences.indexOf(card);
+  if (cardIndex === -1) return state;
+
+  const newInfluences = [
+    ...player.influences.slice(0, cardIndex),
+    ...player.influences.slice(cardIndex + 1),
+  ];
+  
+  const newRevealedInfluences = [...player.revealedInfluences, card];
+  const isAlive = newInfluences.length > 0;
+
+  let newState: GameState = {
+    ...state,
+    players: [...state.players],
+  };
+
+  newState.players[playerIndex] = {
+    ...player,
+    influences: newInfluences,
+    revealedInfluences: newRevealedInfluences,
+    isAlive,
+  };
+
+  if (!isAlive) {
+    newState = addLog(newState, `${player.name} has been eliminated!`, 'system');
+  } else {
+    newState = addLog(newState, `${player.name} loses ${card}.`, 'reveal');
+  }
+
+  return checkWinner(newState);
 };
 
 // Block an action
@@ -346,6 +436,31 @@ export const pass = (state: GameState, playerId: string): GameState => {
   };
 };
 
+// Prompt a player to choose which influence to lose
+const promptLoseInfluence = (state: GameState, playerId: string, afterLoseInfluence: 'resolve_action' | 'next_turn' | 'block_succeeds'): GameState => {
+  const player = getPlayer(state, playerId);
+  if (!player) return state;
+
+  // If player has only 1 influence, lose it automatically
+  if (player.influences.length === 1) {
+    let newState = loseInfluenceDirectly(state, playerId, player.influences[0]);
+    newState = addLog(newState, `${player.name}'s action resolved.`, 'system');
+    return nextTurn({ ...newState, pendingAction: null });
+  }
+
+  // Player must choose which card to lose
+  return {
+    ...state,
+    pendingAction: {
+      action: state.pendingAction?.action || { type: 'coup', playerId: '' },
+      phase: 'lose_influence',
+      playerLosingInfluence: playerId,
+      afterLoseInfluence,
+      waitingForPlayers: [playerId],
+    },
+  };
+};
+
 // Resolve an action
 export const resolveAction = (state: GameState, action: GameAction): GameState => {
   const playerIndex = state.players.findIndex(p => p.id === action.playerId);
@@ -374,9 +489,12 @@ export const resolveAction = (state: GameState, action: GameAction): GameState =
       break;
 
     case 'coup':
+      // Coup target must choose a card to lose (handled separately)
+      return promptLoseInfluence(newState, action.targetId!, 'next_turn');
+
     case 'assassinate':
-      newState = loseInfluence(newState, action.targetId!, null);
-      break;
+      // Assassination target must choose a card to lose
+      return promptLoseInfluence(newState, action.targetId!, 'next_turn');
 
     case 'steal': {
       const targetIndex = newState.players.findIndex(p => p.id === action.targetId);

@@ -12,10 +12,10 @@ import {
   challenge,
   block,
   pass,
+  chooseCardToLose,
   getCurrentPlayer,
   getValidActions,
   getValidTargets,
-  loseInfluence,
 } from './gameEngine';
 
 // AI decision making for simulation
@@ -32,7 +32,8 @@ const makeAIDecision = (state: GameState, playerId: string): AIDecision => {
   const player = state.players.find(p => p.id === playerId)!;
   
   // If we need to lose an influence
-  if (state.pendingAction?.phase === 'resolve') {
+  if (state.pendingAction?.phase === 'lose_influence' && 
+      state.pendingAction.playerLosingInfluence === playerId) {
     return {
       type: 'lose_influence',
       cardToLose: player.influences[Math.floor(Math.random() * player.influences.length)],
@@ -58,18 +59,14 @@ const makeAIDecision = (state: GameState, playerId: string): AIDecision => {
     
     // 30% chance to challenge if possible
     if ((phase === 'challenge_action' || phase === 'challenge_block') && Math.random() < 0.3) {
-      let targetId: string;
       let claimedChar: Character;
       
       if (phase === 'challenge_action') {
-        targetId = action.playerId;
         claimedChar = ACTION_CHARACTERS[action.type]!;
       } else {
-        targetId = state.pendingAction.blockerId!;
         claimedChar = blockerCharacter!;
       }
       
-      const target = state.players.find(p => p.id === targetId)!;
       // Only challenge if we think they might be bluffing
       if (!player.influences.includes(claimedChar)) {
         return { type: 'challenge' };
@@ -110,11 +107,36 @@ export const simulateGame = (playerNames: string[]): {
   while (!state.winner && turns < maxTurns) {
     turns++;
 
+    // Handle lose_influence phase
+    if (state.pendingAction?.phase === 'lose_influence') {
+      const playerId = state.pendingAction.playerLosingInfluence!;
+      const decision = makeAIDecision(state, playerId);
+      
+      if (decision.type === 'lose_influence' && decision.cardToLose) {
+        try {
+          state = chooseCardToLose(state, playerId, decision.cardToLose);
+        } catch (e) {
+          // Try with first card as fallback
+          const player = state.players.find(p => p.id === playerId);
+          if (player && player.influences.length > 0) {
+            try {
+              state = chooseCardToLose(state, playerId, player.influences[0]);
+            } catch {
+              // Skip
+            }
+          }
+        }
+      }
+      continue;
+    }
+
     // Get current player or waiting players
     if (state.pendingAction) {
-      const waitingPlayers = state.pendingAction.waitingForPlayers;
+      const waitingPlayers = [...state.pendingAction.waitingForPlayers];
       
       for (const playerId of waitingPlayers) {
+        if (!state.pendingAction) break;
+        
         const decision = makeAIDecision(state, playerId);
         
         try {
@@ -214,7 +236,7 @@ export const runSimulations = (numGames: number, playerNames: string[]): {
   return results;
 };
 
-// Test specific game scenarios
+// Test specific game scenarios - comprehensive rule testing
 export const testScenarios = (): { 
   scenario: string; 
   passed: boolean; 
@@ -271,51 +293,109 @@ export const testScenarios = (): {
     results.push({ scenario: 'Must coup with 10+ coins', passed: false, details: String(e) });
   }
 
-  // Test 4: Player elimination
+  // Test 4: Coup eliminates one influence and prompts card selection
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[0].coins = 7;
+    state.players[1].influences = ['Duke', 'Assassin']; // Two influences
+    state = startAction(state, { type: 'coup', playerId: state.players[0].id, targetId: state.players[1].id });
+    
+    const passed = state.pendingAction?.phase === 'lose_influence' && 
+                   state.pendingAction?.playerLosingInfluence === state.players[1].id;
+    results.push({
+      scenario: 'Coup prompts target to choose card',
+      passed,
+      details: passed ? 'Target must choose which card to lose' : `Phase: ${state.pendingAction?.phase}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Coup prompts target to choose card', passed: false, details: String(e) });
+  }
+
+  // Test 5: Player can choose which card to lose
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[0].coins = 7;
+    state.players[1].influences = ['Duke', 'Assassin'];
+    state = startAction(state, { type: 'coup', playerId: state.players[0].id, targetId: state.players[1].id });
+    
+    // Bob chooses to lose Duke
+    state = chooseCardToLose(state, state.players[1].id, 'Duke');
+    
+    const passed = state.players[1].influences.length === 1 && 
+                   state.players[1].influences[0] === 'Assassin' &&
+                   state.players[1].revealedInfluences.includes('Duke');
+    results.push({
+      scenario: 'Player can choose which card to lose',
+      passed,
+      details: passed ? 'Correct card was revealed' : `Remaining: ${state.players[1].influences.join(', ')}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Player can choose which card to lose', passed: false, details: String(e) });
+  }
+
+  // Test 6: Player elimination when last influence lost
   try {
     let state = createGame(['Alice', 'Bob']);
     state.players[0].coins = 7;
     state.players[1].influences = ['Duke']; // Only one influence
     state = startAction(state, { type: 'coup', playerId: state.players[0].id, targetId: state.players[1].id });
+    
+    // With 1 influence, should auto-lose and game should end
     const passed = !state.players[1].isAlive && state.winner === state.players[0].id;
     results.push({
-      scenario: 'Coup eliminates player with 1 influence',
+      scenario: 'Player eliminated with last influence lost',
       passed,
       details: passed ? 'Player eliminated and winner declared' : 'Player not properly eliminated',
     });
   } catch (e) {
-    results.push({ scenario: 'Coup eliminates player with 1 influence', passed: false, details: String(e) });
+    results.push({ scenario: 'Player eliminated with last influence lost', passed: false, details: String(e) });
   }
 
-  // Test 5: Challenge mechanics
+  // Test 7: Challenge mechanics - successful challenge
   try {
     let state = createGame(['Alice', 'Bob']);
+    // Ensure Alice doesn't have Duke
+    state.players[0].influences = ['Captain', 'Ambassador'];
+    state.players[1].influences = ['Duke', 'Assassin'];
+    
     state = startAction(state, { type: 'tax', playerId: state.players[0].id });
-    
-    // Store original influences
-    const aliceHadDuke = state.players[0].influences.includes('Duke');
-    
     state = challenge(state, state.players[1].id);
     
-    let passed: boolean;
-    if (aliceHadDuke) {
-      // Alice had Duke, Bob should lose an influence
-      passed = state.players[1].influences.length < 2 || state.players[1].revealedInfluences.length > 0;
-    } else {
-      // Alice didn't have Duke, Alice should lose an influence
-      passed = state.players[0].influences.length < 2 || state.players[0].revealedInfluences.length > 0;
-    }
-    
+    // Alice should need to choose a card to lose (challenge succeeded)
+    const passed = state.pendingAction?.phase === 'lose_influence' &&
+                   state.pendingAction?.playerLosingInfluence === state.players[0].id;
     results.push({
-      scenario: 'Challenge resolves correctly',
+      scenario: 'Successful challenge - liar loses influence',
       passed,
-      details: passed ? 'Challenge resolved with correct player losing influence' : 'Challenge resolution incorrect',
+      details: passed ? 'Challenged player must choose card to lose' : `Phase: ${state.pendingAction?.phase}`,
     });
   } catch (e) {
-    results.push({ scenario: 'Challenge resolves correctly', passed: false, details: String(e) });
+    results.push({ scenario: 'Successful challenge - liar loses influence', passed: false, details: String(e) });
   }
 
-  // Test 6: Foreign aid can be blocked by Duke
+  // Test 8: Challenge mechanics - failed challenge
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    // Ensure Alice has Duke
+    state.players[0].influences = ['Duke', 'Ambassador'];
+    state.players[1].influences = ['Captain', 'Assassin'];
+    
+    state = startAction(state, { type: 'tax', playerId: state.players[0].id });
+    state = challenge(state, state.players[1].id);
+    
+    // Bob should need to choose a card to lose (challenge failed)
+    const passed = state.pendingAction?.phase === 'lose_influence' &&
+                   state.pendingAction?.playerLosingInfluence === state.players[1].id;
+    results.push({
+      scenario: 'Failed challenge - challenger loses influence',
+      passed,
+      details: passed ? 'Challenger must choose card to lose' : `Phase: ${state.pendingAction?.phase}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Failed challenge - challenger loses influence', passed: false, details: String(e) });
+  }
+
+  // Test 9: Foreign aid can be blocked by Duke
   try {
     let state = createGame(['Alice', 'Bob']);
     state = startAction(state, { type: 'foreign_aid', playerId: state.players[0].id });
@@ -343,7 +423,7 @@ export const testScenarios = (): {
     results.push({ scenario: 'Duke can block foreign aid', passed: false, details: String(e) });
   }
 
-  // Test 7: Assassination costs 3 coins
+  // Test 10: Assassination costs 3 coins
   try {
     let state = createGame(['Alice', 'Bob']);
     state.players[0].coins = 3;
@@ -359,7 +439,7 @@ export const testScenarios = (): {
     results.push({ scenario: 'Assassination costs 3 coins', passed: false, details: String(e) });
   }
 
-  // Test 8: Steal takes up to 2 coins
+  // Test 11: Steal takes up to 2 coins
   try {
     let state = createGame(['Alice', 'Bob']);
     state.players[1].coins = 5;
@@ -379,6 +459,96 @@ export const testScenarios = (): {
     });
   } catch (e) {
     results.push({ scenario: 'Steal takes 2 coins', passed: false, details: String(e) });
+  }
+
+  // Test 12: Contessa blocks assassination
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[0].coins = 3;
+    state = startAction(state, { type: 'assassinate', playerId: state.players[0].id, targetId: state.players[1].id });
+    
+    // Pass challenge phase
+    state = pass(state, state.players[1].id);
+    
+    // Bob blocks with Contessa
+    state = block(state, state.players[1].id, 'Contessa');
+    
+    const passed = state.pendingAction?.blockerCharacter === 'Contessa' &&
+                   state.pendingAction?.phase === 'challenge_block';
+    results.push({
+      scenario: 'Contessa blocks assassination',
+      passed,
+      details: passed ? 'Block initiated correctly' : `Phase: ${state.pendingAction?.phase}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Contessa blocks assassination', passed: false, details: String(e) });
+  }
+
+  // Test 13: Captain/Ambassador blocks steal
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[1].coins = 3;
+    state = startAction(state, { type: 'steal', playerId: state.players[0].id, targetId: state.players[1].id });
+    
+    // Pass challenge phase
+    state = pass(state, state.players[1].id);
+    
+    // Bob blocks with Captain
+    state = block(state, state.players[1].id, 'Captain');
+    
+    const passed = state.pendingAction?.blockerCharacter === 'Captain' &&
+                   state.pendingAction?.phase === 'challenge_block';
+    results.push({
+      scenario: 'Captain blocks steal',
+      passed,
+      details: passed ? 'Block initiated correctly' : `Phase: ${state.pendingAction?.phase}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Captain blocks steal', passed: false, details: String(e) });
+  }
+
+  // Test 14: Tax gives 3 coins
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    const initialCoins = state.players[0].coins;
+    state = startAction(state, { type: 'tax', playerId: state.players[0].id });
+    
+    // Pass all responses
+    while (state.pendingAction?.waitingForPlayers.length) {
+      const waitingPlayer = state.pendingAction.waitingForPlayers[0];
+      state = pass(state, waitingPlayer);
+    }
+    
+    const passed = state.players[0].coins === initialCoins + 3;
+    results.push({
+      scenario: 'Tax gives 3 coins',
+      passed,
+      details: passed ? 'Coins added correctly' : `Expected ${initialCoins + 3}, got ${state.players[0].coins}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Tax gives 3 coins', passed: false, details: String(e) });
+  }
+
+  // Test 15: Foreign aid gives 2 coins when unchallenged/unblocked
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    const initialCoins = state.players[0].coins;
+    state = startAction(state, { type: 'foreign_aid', playerId: state.players[0].id });
+    
+    // Pass all responses
+    while (state.pendingAction?.waitingForPlayers.length) {
+      const waitingPlayer = state.pendingAction.waitingForPlayers[0];
+      state = pass(state, waitingPlayer);
+    }
+    
+    const passed = state.players[0].coins === initialCoins + 2;
+    results.push({
+      scenario: 'Foreign aid gives 2 coins',
+      passed,
+      details: passed ? 'Coins added correctly' : `Expected ${initialCoins + 2}, got ${state.players[0].coins}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Foreign aid gives 2 coins', passed: false, details: String(e) });
   }
 
   return results;

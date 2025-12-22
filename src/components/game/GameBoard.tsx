@@ -5,6 +5,7 @@ import {
   challenge,
   block,
   pass,
+  chooseCardToLose,
   getCurrentPlayer,
 } from "@/lib/gameEngine";
 import { PlayerDisplay } from "./PlayerDisplay";
@@ -24,6 +25,7 @@ interface GameBoardProps {
   onChallenge?: () => void;
   onBlock?: (character: Character) => void;
   onPass?: () => void;
+  onChooseCardToLose?: (card: Character) => void;
   isMultiplayer?: boolean;
 }
 
@@ -36,6 +38,7 @@ export const GameBoard = ({
   onChallenge: externalOnChallenge,
   onBlock: externalOnBlock,
   onPass: externalOnPass,
+  onChooseCardToLose: externalOnChooseCardToLose,
   isMultiplayer = false,
 }: GameBoardProps) => {
   const [gameState, setGameState] = useState<GameState>(initialState);
@@ -135,6 +138,28 @@ export const GameBoard = ({
     }
   }, [gameState, localPlayerId, onGameEnd, externalOnPass]);
 
+  const handleChooseCardToLose = useCallback((card: Character) => {
+    if (externalOnChooseCardToLose) {
+      externalOnChooseCardToLose(card);
+      return;
+    }
+
+    try {
+      const newState = chooseCardToLose(gameState, localPlayerId, card);
+      setGameState(newState);
+
+      if (newState.winner) {
+        onGameEnd?.(newState.winner);
+      }
+    } catch (error) {
+      toast({
+        title: "Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  }, [gameState, localPlayerId, onGameEnd, externalOnChooseCardToLose]);
+
   const winner = gameState.winner
     ? gameState.players.find((p) => p.id === gameState.winner)
     : null;
@@ -192,6 +217,7 @@ export const GameBoard = ({
             onChallenge={handleChallenge}
             onBlock={handleBlock}
             onPass={handlePass}
+            onChooseCardToLose={handleChooseCardToLose}
           />
         )}
 
