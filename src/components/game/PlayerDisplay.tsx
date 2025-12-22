@@ -50,7 +50,7 @@ export const PlayerDisplay = ({
         {/* Active influences */}
         {player.influences.map((char, idx) =>
           showCards || isLocalPlayer ? (
-            <CharacterCard key={idx} character={char} size="sm" isRevealed={false} />
+            <CharacterCard key={idx} character={char} size="sm" isSelectable={true} />
           ) : (
             <CardBack key={idx} size="sm" />
           )
