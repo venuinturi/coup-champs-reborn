@@ -551,5 +551,214 @@ export const testScenarios = (): {
     results.push({ scenario: 'Foreign aid gives 2 coins', passed: false, details: String(e) });
   }
 
+  // Test 16: Exchange action works correctly
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state = startAction(state, { type: 'exchange', playerId: state.players[0].id });
+    
+    // Pass all responses
+    while (state.pendingAction?.waitingForPlayers.length) {
+      const waitingPlayer = state.pendingAction.waitingForPlayers[0];
+      state = pass(state, waitingPlayer);
+    }
+    
+    // After exchange, player should still have 2 influences
+    const passed = state.players[0].influences.length === 2;
+    results.push({
+      scenario: 'Exchange maintains influence count',
+      passed,
+      details: passed ? 'Player still has 2 influences' : `Has ${state.players[0].influences.length} influences`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Exchange maintains influence count', passed: false, details: String(e) });
+  }
+
+  // Test 17: Steal from player with 1 coin only takes 1
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[1].coins = 1;
+    state = startAction(state, { type: 'steal', playerId: state.players[0].id, targetId: state.players[1].id });
+    
+    // Pass all responses
+    while (state.pendingAction?.waitingForPlayers.length) {
+      const waitingPlayer = state.pendingAction.waitingForPlayers[0];
+      state = pass(state, waitingPlayer);
+    }
+    
+    const passed = state.players[0].coins === 3 && state.players[1].coins === 0;
+    results.push({
+      scenario: 'Steal from player with 1 coin takes 1',
+      passed,
+      details: passed ? 'Coins transferred correctly' : `Alice: ${state.players[0].coins}, Bob: ${state.players[1].coins}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Steal from player with 1 coin takes 1', passed: false, details: String(e) });
+  }
+
+  // Test 18: Cannot steal from player with 0 coins
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[1].coins = 0;
+    let passed = false;
+    try {
+      state = startAction(state, { type: 'steal', playerId: state.players[0].id, targetId: state.players[1].id });
+    } catch (e) {
+      passed = true;
+    }
+    results.push({
+      scenario: 'Cannot steal from player with 0 coins',
+      passed,
+      details: passed ? 'Correctly prevented steal' : 'Allowed stealing from player with 0 coins',
+    });
+  } catch (e) {
+    results.push({ scenario: 'Cannot steal from player with 0 coins', passed: false, details: String(e) });
+  }
+
+  // Test 19: Turn advances to next player after action
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state = startAction(state, { type: 'income', playerId: state.players[0].id });
+    const passed = state.currentPlayerIndex === 1;
+    results.push({
+      scenario: 'Turn advances after income',
+      passed,
+      details: passed ? 'Turn advanced to Bob' : `Turn is player index ${state.currentPlayerIndex}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Turn advances after income', passed: false, details: String(e) });
+  }
+
+  // Test 20: Turn skips eliminated players
+  try {
+    let state = createGame(['Alice', 'Bob', 'Charlie']);
+    state.players[1].isAlive = false;
+    state.players[1].influences = [];
+    state = startAction(state, { type: 'income', playerId: state.players[0].id });
+    const passed = state.currentPlayerIndex === 2; // Should skip Bob (index 1)
+    results.push({
+      scenario: 'Turn skips eliminated players',
+      passed,
+      details: passed ? 'Correctly skipped to Charlie' : `Turn is player index ${state.currentPlayerIndex}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Turn skips eliminated players', passed: false, details: String(e) });
+  }
+
+  // Test 21: Block challenge - blocker has the card (block succeeds)
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[1].coins = 5;
+    state.players[1].influences = ['Captain', 'Duke'];
+    
+    state = startAction(state, { type: 'steal', playerId: state.players[0].id, targetId: state.players[1].id });
+    state = pass(state, state.players[1].id); // Pass challenge
+    state = block(state, state.players[1].id, 'Captain');
+    
+    // Alice challenges the block
+    state = challenge(state, state.players[0].id);
+    
+    // Bob has Captain, so Alice loses influence
+    const passed = state.pendingAction?.phase === 'lose_influence' &&
+                   state.pendingAction?.playerLosingInfluence === state.players[0].id;
+    results.push({
+      scenario: 'Block challenge - blocker has card, challenger loses',
+      passed,
+      details: passed ? 'Challenger must lose influence' : `Phase: ${state.pendingAction?.phase}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Block challenge - blocker has card, challenger loses', passed: false, details: String(e) });
+  }
+
+  // Test 22: Block challenge - blocker doesn't have the card (action proceeds)
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[1].coins = 5;
+    state.players[1].influences = ['Duke', 'Assassin']; // No Captain
+    
+    state = startAction(state, { type: 'steal', playerId: state.players[0].id, targetId: state.players[1].id });
+    state = pass(state, state.players[1].id); // Pass challenge
+    state = block(state, state.players[1].id, 'Captain');
+    
+    // Alice challenges the block
+    state = challenge(state, state.players[0].id);
+    
+    // Bob doesn't have Captain, so Bob loses influence
+    const passed = state.pendingAction?.phase === 'lose_influence' &&
+                   state.pendingAction?.playerLosingInfluence === state.players[1].id;
+    results.push({
+      scenario: 'Block challenge - blocker bluffing, blocker loses',
+      passed,
+      details: passed ? 'Blocker must lose influence' : `Phase: ${state.pendingAction?.phase}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Block challenge - blocker bluffing, blocker loses', passed: false, details: String(e) });
+  }
+
+  // Test 23: Complete flow - successful challenge on action stops the action
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[0].influences = ['Captain', 'Ambassador']; // No Duke
+    state.players[0].coins = 2;
+    
+    state = startAction(state, { type: 'tax', playerId: state.players[0].id });
+    state = challenge(state, state.players[1].id);
+    
+    // Alice doesn't have Duke, challenge succeeds
+    // Alice must choose card to lose
+    state = chooseCardToLose(state, state.players[0].id, 'Captain');
+    
+    // Turn should advance, Alice should NOT get 3 coins
+    const passed = state.players[0].coins === 2 && state.currentPlayerIndex === 1;
+    results.push({
+      scenario: 'Successful challenge cancels action',
+      passed,
+      details: passed ? 'Action cancelled, turn advanced' : `Coins: ${state.players[0].coins}, Turn: ${state.currentPlayerIndex}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Successful challenge cancels action', passed: false, details: String(e) });
+  }
+
+  // Test 24: Complete flow - failed challenge lets action proceed
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    state.players[0].influences = ['Duke', 'Ambassador']; // Has Duke
+    state.players[1].influences = ['Captain', 'Assassin'];
+    state.players[0].coins = 2;
+    
+    state = startAction(state, { type: 'tax', playerId: state.players[0].id });
+    state = challenge(state, state.players[1].id);
+    
+    // Alice has Duke, challenge fails
+    // Bob must choose card to lose
+    state = chooseCardToLose(state, state.players[1].id, 'Captain');
+    
+    // Alice should get 3 coins
+    const passed = state.players[0].coins === 5;
+    results.push({
+      scenario: 'Failed challenge lets action proceed',
+      passed,
+      details: passed ? 'Action completed, coins received' : `Coins: ${state.players[0].coins}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Failed challenge lets action proceed', passed: false, details: String(e) });
+  }
+
+  // Test 25: Three player game - correct turn order
+  try {
+    let state = createGame(['Alice', 'Bob', 'Charlie']);
+    state = startAction(state, { type: 'income', playerId: state.players[0].id });
+    state = startAction(state, { type: 'income', playerId: state.players[1].id });
+    state = startAction(state, { type: 'income', playerId: state.players[2].id });
+    
+    const passed = state.currentPlayerIndex === 0; // Back to Alice
+    results.push({
+      scenario: 'Three player turn order wraps correctly',
+      passed,
+      details: passed ? 'Turn wrapped to Alice' : `Turn is player index ${state.currentPlayerIndex}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Three player turn order wraps correctly', passed: false, details: String(e) });
+  }
+
   return results;
 };

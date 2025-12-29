@@ -226,20 +226,40 @@ export const ActionPanel = ({
     );
   }
 
+  // Someone else needs to lose influence - show waiting state
+  if (pendingAction?.phase === 'lose_influence' && 
+      pendingAction.playerLosingInfluence !== localPlayerId) {
+    const losingPlayer = gameState.players.find(p => p.id === pendingAction.playerLosingInfluence);
+    return (
+      <div className="bg-card border border-border rounded-xl p-4">
+        <h3 className="font-display text-lg text-foreground mb-2">
+          Waiting for Card Selection
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          {losingPlayer?.name || 'A player'} is choosing which card to reveal...
+        </p>
+      </div>
+    );
+  }
+
   // Waiting state
   return (
     <div className="bg-card border border-border rounded-xl p-4">
       <h3 className="font-display text-lg text-foreground mb-2">
         {pendingAction
           ? "Waiting for other players..."
-          : `${currentPlayer.name}'s turn...`}
+          : isMyTurn
+            ? "Your Turn - Choose an Action"
+            : `${currentPlayer.name}'s turn...`}
       </h3>
       <p className="text-sm text-muted-foreground">
         {pendingAction
           ? `Waiting for: ${pendingAction.waitingForPlayers
               .map((id) => gameState.players.find((p) => p.id === id)?.name)
               .join(", ")}`
-          : "Wait for your turn to take an action."}
+          : isMyTurn
+            ? "Select an action above."
+            : "Wait for your turn to take an action."}
       </p>
     </div>
   );

@@ -6,6 +6,7 @@ import {
   challenge,
   block,
   pass,
+  chooseCardToLose,
 } from '@/lib/gameEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { GameBoard } from '@/components/game/GameBoard';
@@ -232,6 +233,25 @@ const MultiplayerGame = () => {
     }
   }, [gameState, localPlayerId, updateGameState]);
 
+  // Handle choosing which card to lose
+  const handleChooseCardToLose = useCallback(async (card: Character) => {
+    if (!gameState) return;
+
+    console.log('Choose card to lose:', card, 'by:', localPlayerId);
+
+    try {
+      const newState = chooseCardToLose(gameState, localPlayerId, card);
+      await updateGameState(newState);
+    } catch (error) {
+      console.error('Choose card error:', error);
+      toast({
+        title: 'Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  }, [gameState, localPlayerId, updateGameState]);
+
   const handleRestart = () => {
     navigate('/');
   };
@@ -272,6 +292,7 @@ const MultiplayerGame = () => {
       onChallenge={handleChallenge}
       onBlock={handleBlock}
       onPass={handlePass}
+      onChooseCardToLose={handleChooseCardToLose}
       isMultiplayer
     />
   );
