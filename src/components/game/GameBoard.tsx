@@ -6,6 +6,7 @@ import {
   block,
   pass,
   chooseCardToLose,
+  chooseExchangeCards,
   getCurrentPlayer,
 } from "@/lib/gameEngine";
 import { PlayerDisplay } from "./PlayerDisplay";
@@ -26,6 +27,7 @@ interface GameBoardProps {
   onBlock?: (character: Character) => void;
   onPass?: () => void;
   onChooseCardToLose?: (card: Character) => void;
+  onExchangeSelect?: (selectedCards: Character[]) => void;
   isMultiplayer?: boolean;
 }
 
@@ -39,6 +41,7 @@ export const GameBoard = ({
   onBlock: externalOnBlock,
   onPass: externalOnPass,
   onChooseCardToLose: externalOnChooseCardToLose,
+  onExchangeSelect: externalOnExchangeSelect,
   isMultiplayer = false,
 }: GameBoardProps) => {
   const [gameState, setGameState] = useState<GameState>(initialState);
@@ -160,6 +163,28 @@ export const GameBoard = ({
     }
   }, [gameState, localPlayerId, onGameEnd, externalOnChooseCardToLose]);
 
+  const handleExchangeSelect = useCallback((selectedCards: Character[]) => {
+    if (externalOnExchangeSelect) {
+      externalOnExchangeSelect(selectedCards);
+      return;
+    }
+
+    try {
+      const newState = chooseExchangeCards(gameState, localPlayerId, selectedCards);
+      setGameState(newState);
+
+      if (newState.winner) {
+        onGameEnd?.(newState.winner);
+      }
+    } catch (error) {
+      toast({
+        title: "Exchange Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  }, [gameState, localPlayerId, onGameEnd, externalOnExchangeSelect]);
+
   const winner = gameState.winner
     ? gameState.players.find((p) => p.id === gameState.winner)
     : null;
@@ -218,6 +243,7 @@ export const GameBoard = ({
             onBlock={handleBlock}
             onPass={handlePass}
             onChooseCardToLose={handleChooseCardToLose}
+            onExchangeSelect={handleExchangeSelect}
           />
         )}
 

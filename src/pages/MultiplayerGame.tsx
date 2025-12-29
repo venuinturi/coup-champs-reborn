@@ -7,6 +7,7 @@ import {
   block,
   pass,
   chooseCardToLose,
+  chooseExchangeCards,
 } from '@/lib/gameEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { GameBoard } from '@/components/game/GameBoard';
@@ -252,6 +253,25 @@ const MultiplayerGame = () => {
     }
   }, [gameState, localPlayerId, updateGameState]);
 
+  // Handle exchange card selection
+  const handleExchangeSelect = useCallback(async (selectedCards: Character[]) => {
+    if (!gameState) return;
+
+    console.log('Exchange select:', selectedCards, 'by:', localPlayerId);
+
+    try {
+      const newState = chooseExchangeCards(gameState, localPlayerId, selectedCards);
+      await updateGameState(newState);
+    } catch (error) {
+      console.error('Exchange error:', error);
+      toast({
+        title: 'Exchange Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  }, [gameState, localPlayerId, updateGameState]);
+
   const handleRestart = () => {
     navigate('/');
   };
@@ -293,6 +313,7 @@ const MultiplayerGame = () => {
       onBlock={handleBlock}
       onPass={handlePass}
       onChooseCardToLose={handleChooseCardToLose}
+      onExchangeSelect={handleExchangeSelect}
       isMultiplayer
     />
   );

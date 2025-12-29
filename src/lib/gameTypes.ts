@@ -32,13 +32,15 @@ export interface GameAction {
 // Pending action state
 export interface PendingAction {
   action: GameAction;
-  phase: 'action' | 'challenge_action' | 'block' | 'challenge_block' | 'resolve' | 'lose_influence';
+  phase: 'action' | 'challenge_action' | 'block' | 'challenge_block' | 'resolve' | 'lose_influence' | 'exchange_select';
   blockerId?: string;
   blockerCharacter?: Character;
   challengerId?: string;
   waitingForPlayers: string[];
   playerLosingInfluence?: string; // Player who needs to choose a card to lose
   afterLoseInfluence?: 'resolve_action' | 'next_turn' | 'block_succeeds'; // What happens after losing influence
+  exchangeCards?: Character[]; // Cards available for exchange (player's cards + 2 from deck)
+  cardsToKeep?: number; // Number of cards the player should keep
 }
 
 // Game state
