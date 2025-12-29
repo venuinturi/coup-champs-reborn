@@ -26,6 +26,7 @@ interface ActionPanelProps {
   onBlock: (character: Character) => void;
   onPass: () => void;
   onChooseCardToLose?: (card: Character) => void;
+  onExchangeSelect?: (selectedCards: Character[]) => void;
 }
 
 const ACTION_LABELS: Record<ActionType, { name: string; description: string }> = {
@@ -46,9 +47,11 @@ export const ActionPanel = ({
   onBlock,
   onPass,
   onChooseCardToLose,
+  onExchangeSelect,
 }: ActionPanelProps) => {
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
   const [showTargetDialog, setShowTargetDialog] = useState(false);
+  const [selectedExchangeCards, setSelectedExchangeCards] = useState<Character[]>([]);
 
   const currentPlayer = getCurrentPlayer(gameState);
   const localPlayer = gameState.players.find((p) => p.id === localPlayerId);
@@ -131,6 +134,115 @@ export const ActionPanel = ({
           </DialogContent>
         </Dialog>
       </>
+    );
+  }
+
+  // Render exchange card selection
+  if (pendingAction?.phase === 'exchange_select' && 
+      pendingAction.waitingForPlayers.includes(localPlayerId) &&
+      pendingAction.exchangeCards &&
+      pendingAction.cardsToKeep !== undefined) {
+    const { exchangeCards, cardsToKeep } = pendingAction;
+    
+    const toggleCardSelection = (card: Character, idx: number) => {
+      const cardKey = `${card}-${idx}`;
+      const isSelected = selectedExchangeCards.some((c, i) => 
+        exchangeCards.indexOf(c) === idx || selectedExchangeCards.includes(card)
+      );
+      
+      // Use index-based tracking to handle duplicate cards
+      const selectedIndices = selectedExchangeCards.map(c => {
+        for (let i = 0; i < exchangeCards.length; i++) {
+          if (exchangeCards[i] === c && !selectedExchangeCards.slice(0, selectedExchangeCards.indexOf(c)).includes(exchangeCards[i])) {
+            return i;
+          }
+        }
+        return -1;
+      });
+      
+      if (selectedExchangeCards.length < cardsToKeep || selectedExchangeCards.includes(card)) {
+        if (selectedExchangeCards.includes(card)) {
+          const cardIdx = selectedExchangeCards.indexOf(card);
+          setSelectedExchangeCards(prev => [...prev.slice(0, cardIdx), ...prev.slice(cardIdx + 1)]);
+        } else if (selectedExchangeCards.length < cardsToKeep) {
+          setSelectedExchangeCards(prev => [...prev, card]);
+        }
+      }
+    };
+
+    const handleConfirmExchange = () => {
+      if (selectedExchangeCards.length === cardsToKeep) {
+        onExchangeSelect?.(selectedExchangeCards);
+        setSelectedExchangeCards([]);
+      }
+    };
+
+    return (
+      <div className="bg-card border border-primary rounded-xl p-4">
+        <h3 className="font-display text-lg text-foreground mb-2">
+          Ambassador Exchange
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Select {cardsToKeep} card{cardsToKeep !== 1 ? 's' : ''} to keep. The rest will be returned to the deck.
+        </p>
+        <div className="flex flex-wrap gap-3 justify-center mb-4">
+          {exchangeCards.map((card, idx) => {
+            const isSelected = selectedExchangeCards.filter(c => c === card).length > 
+              exchangeCards.slice(0, idx).filter(c => c === card).length - 
+              selectedExchangeCards.slice(0, selectedExchangeCards.findIndex(c => c === card)).filter(c => c === card).length
+              ? selectedExchangeCards.includes(card) && 
+                selectedExchangeCards.filter(c => c === card).length > 
+                exchangeCards.slice(0, idx).filter(c => c === card).length
+              : false;
+            
+            // Simpler selection logic
+            const countInSelected = selectedExchangeCards.filter(c => c === card).length;
+            const countBeforeInExchange = exchangeCards.slice(0, idx).filter(c => c === card).length;
+            const selected = countInSelected > countBeforeInExchange;
+            
+            return (
+              <Button
+                key={idx}
+                variant={selected ? "gold" : "outline"}
+                className={cn(
+                  "flex flex-col h-auto py-3 px-6 transition-all",
+                  selected && "ring-2 ring-primary"
+                )}
+                onClick={() => {
+                  if (selected) {
+                    // Remove first occurrence of this card from selection
+                    const idxToRemove = selectedExchangeCards.indexOf(card);
+                    setSelectedExchangeCards(prev => [...prev.slice(0, idxToRemove), ...prev.slice(idxToRemove + 1)]);
+                  } else if (selectedExchangeCards.length < cardsToKeep) {
+                    setSelectedExchangeCards(prev => [...prev, card]);
+                  }
+                }}
+              >
+                <span className="text-2xl mb-1">
+                  {card === 'Duke' && '👑'}
+                  {card === 'Assassin' && '🗡️'}
+                  {card === 'Captain' && '⚓'}
+                  {card === 'Ambassador' && '📜'}
+                  {card === 'Contessa' && '💎'}
+                </span>
+                <span className="font-semibold">{card}</span>
+              </Button>
+            );
+          })}
+        </div>
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground mb-2">
+            Selected: {selectedExchangeCards.length} / {cardsToKeep}
+          </p>
+          <Button 
+            variant="gold" 
+            onClick={handleConfirmExchange}
+            disabled={selectedExchangeCards.length !== cardsToKeep}
+          >
+            Confirm Selection
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -237,6 +349,22 @@ export const ActionPanel = ({
         </h3>
         <p className="text-sm text-muted-foreground">
           {losingPlayer?.name || 'A player'} is choosing which card to reveal...
+        </p>
+      </div>
+    );
+  }
+
+  // Someone else is doing exchange selection - show waiting state
+  if (pendingAction?.phase === 'exchange_select' && 
+      !pendingAction.waitingForPlayers.includes(localPlayerId)) {
+    const exchangingPlayer = gameState.players.find(p => pendingAction.waitingForPlayers.includes(p.id));
+    return (
+      <div className="bg-card border border-border rounded-xl p-4">
+        <h3 className="font-display text-lg text-foreground mb-2">
+          Ambassador Exchange in Progress
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          {exchangingPlayer?.name || 'A player'} is selecting which cards to keep...
         </p>
       </div>
     );

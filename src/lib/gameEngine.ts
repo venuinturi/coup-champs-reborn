@@ -311,6 +311,43 @@ export const chooseCardToLose = (state: GameState, playerId: string, card: Chara
   }
 };
 
+// Choose which cards to keep during Ambassador exchange
+export const chooseExchangeCards = (state: GameState, playerId: string, selectedCards: Character[]): GameState => {
+  if (!state.pendingAction) throw new Error('No pending action');
+  if (state.pendingAction.phase !== 'exchange_select') throw new Error('Not in exchange_select phase');
+  if (!state.pendingAction.waitingForPlayers.includes(playerId)) throw new Error('Not your turn to select cards');
+  
+  const { exchangeCards, cardsToKeep, action } = state.pendingAction;
+  if (!exchangeCards || cardsToKeep === undefined) throw new Error('Invalid exchange state');
+  if (selectedCards.length !== cardsToKeep) throw new Error(`Must select exactly ${cardsToKeep} cards`);
+  
+  // Validate that selected cards are available
+  const availableCards = [...exchangeCards];
+  for (const card of selectedCards) {
+    const idx = availableCards.indexOf(card);
+    if (idx === -1) throw new Error(`Card ${card} not available for selection`);
+    availableCards.splice(idx, 1);
+  }
+  
+  // Cards not selected go back to deck
+  const returnedCards = availableCards;
+  
+  const playerIndex = state.players.findIndex(p => p.id === playerId);
+  let newState: GameState = {
+    ...state,
+    players: [...state.players],
+    deck: shuffleDeck([...state.deck, ...returnedCards]),
+  };
+  
+  newState.players[playerIndex] = {
+    ...newState.players[playerIndex],
+    influences: selectedCards,
+  };
+  
+  newState = addLog(newState, `${newState.players[playerIndex].name} exchanged cards.`, 'system');
+  return nextTurn({ ...newState, pendingAction: null });
+}
+
 // Internal function to directly lose an influence without player choice
 const loseInfluenceDirectly = (state: GameState, playerId: string, card: Character): GameState => {
   const playerIndex = state.players.findIndex(p => p.id === playerId);
@@ -510,19 +547,25 @@ export const resolveAction = (state: GameState, action: GameAction): GameState =
       break;
     }
 
-    case 'exchange':
-      // Exchange is handled separately
-      const newCards = [newState.deck.pop()!, newState.deck.pop()!];
-      const allCards = [...newState.players[playerIndex].influences, ...newCards];
+    case 'exchange': {
+      // Draw 2 cards from deck
+      const drawnCards = [newState.deck.pop()!, newState.deck.pop()!];
+      const playerCards = newState.players[playerIndex].influences;
+      const allCards = [...playerCards, ...drawnCards];
+      const numToKeep = playerCards.length; // Keep the same number of cards they had
       
-      // For simulation, just keep the first N cards
-      const numToKeep = newState.players[playerIndex].influences.length;
-      newState.players[playerIndex] = {
-        ...newState.players[playerIndex],
-        influences: allCards.slice(0, numToKeep),
+      // Enter exchange selection phase
+      return {
+        ...newState,
+        pendingAction: {
+          action,
+          phase: 'exchange_select',
+          waitingForPlayers: [action.playerId],
+          exchangeCards: allCards,
+          cardsToKeep: numToKeep,
+        },
       };
-      newState.deck = shuffleDeck([...newState.deck, ...allCards.slice(numToKeep)]);
-      break;
+    }
   }
 
   newState = addLog(newState, `${newState.players[playerIndex].name}'s action resolved.`, 'system');

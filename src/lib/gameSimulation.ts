@@ -13,6 +13,7 @@ import {
   block,
   pass,
   chooseCardToLose,
+  chooseExchangeCards,
   getCurrentPlayer,
   getValidActions,
   getValidTargets,
@@ -20,16 +21,30 @@ import {
 
 // AI decision making for simulation
 export interface AIDecision {
-  type: 'action' | 'challenge' | 'block' | 'pass' | 'lose_influence';
+  type: 'action' | 'challenge' | 'block' | 'pass' | 'lose_influence' | 'exchange_select';
   action?: ActionType;
   targetId?: string;
   character?: Character;
   cardToLose?: Character;
+  selectedCards?: Character[];
 }
 
 // Simple AI that makes random but valid decisions
 const makeAIDecision = (state: GameState, playerId: string): AIDecision => {
   const player = state.players.find(p => p.id === playerId)!;
+  
+  // If we need to select cards for exchange
+  if (state.pendingAction?.phase === 'exchange_select' && 
+      state.pendingAction.waitingForPlayers.includes(playerId) &&
+      state.pendingAction.exchangeCards &&
+      state.pendingAction.cardsToKeep !== undefined) {
+    const { exchangeCards, cardsToKeep } = state.pendingAction;
+    // AI picks first N cards (simple strategy)
+    return {
+      type: 'exchange_select',
+      selectedCards: exchangeCards.slice(0, cardsToKeep),
+    };
+  }
   
   // If we need to lose an influence
   if (state.pendingAction?.phase === 'lose_influence' && 
@@ -106,6 +121,29 @@ export const simulateGame = (playerNames: string[]): {
 
   while (!state.winner && turns < maxTurns) {
     turns++;
+
+    // Handle exchange_select phase
+    if (state.pendingAction?.phase === 'exchange_select') {
+      const playerId = state.pendingAction.waitingForPlayers[0];
+      const decision = makeAIDecision(state, playerId);
+      
+      if (decision.type === 'exchange_select' && decision.selectedCards) {
+        try {
+          state = chooseExchangeCards(state, playerId, decision.selectedCards);
+        } catch (e) {
+          // Fallback: keep first N cards
+          const { exchangeCards, cardsToKeep } = state.pendingAction;
+          if (exchangeCards && cardsToKeep !== undefined) {
+            try {
+              state = chooseExchangeCards(state, playerId, exchangeCards.slice(0, cardsToKeep));
+            } catch {
+              // Skip
+            }
+          }
+        }
+      }
+      continue;
+    }
 
     // Handle lose_influence phase
     if (state.pendingAction?.phase === 'lose_influence') {
@@ -551,26 +589,79 @@ export const testScenarios = (): {
     results.push({ scenario: 'Foreign aid gives 2 coins', passed: false, details: String(e) });
   }
 
-  // Test 16: Exchange action works correctly
+  // Test 16: Exchange action works correctly with card selection
   try {
     let state = createGame(['Alice', 'Bob']);
+    const originalInfluences = [...state.players[0].influences];
     state = startAction(state, { type: 'exchange', playerId: state.players[0].id });
     
-    // Pass all responses
-    while (state.pendingAction?.waitingForPlayers.length) {
+    // Pass challenge phase
+    while (state.pendingAction?.phase === 'challenge_action' && state.pendingAction?.waitingForPlayers.length) {
       const waitingPlayer = state.pendingAction.waitingForPlayers[0];
       state = pass(state, waitingPlayer);
     }
     
-    // After exchange, player should still have 2 influences
-    const passed = state.players[0].influences.length === 2;
+    // Now should be in exchange_select phase
+    let passedPhase = state.pendingAction?.phase === 'exchange_select';
+    let passedCards = state.pendingAction?.exchangeCards?.length === 4; // 2 original + 2 drawn
+    let passedKeep = state.pendingAction?.cardsToKeep === 2;
+    
+    if (passedPhase && passedCards && passedKeep) {
+      // Select first 2 cards to keep
+      const cardsToKeep = state.pendingAction!.exchangeCards!.slice(0, 2);
+      state = chooseExchangeCards(state, state.players[0].id, cardsToKeep);
+    }
+    
+    const passed = passedPhase && passedCards && passedKeep && 
+                   state.players[0].influences.length === 2 && 
+                   state.pendingAction === null;
     results.push({
-      scenario: 'Exchange maintains influence count',
+      scenario: 'Exchange shows 4 cards and keeps 2',
       passed,
-      details: passed ? 'Player still has 2 influences' : `Has ${state.players[0].influences.length} influences`,
+      details: passed 
+        ? 'Exchange phase worked correctly with card selection' 
+        : `Phase: ${passedPhase}, Cards: ${passedCards}, Keep: ${passedKeep}`,
     });
   } catch (e) {
-    results.push({ scenario: 'Exchange maintains influence count', passed: false, details: String(e) });
+    results.push({ scenario: 'Exchange shows 4 cards and keeps 2', passed: false, details: String(e) });
+  }
+
+  // Test 16b: Exchange with 1 influence shows 3 cards and keeps 1
+  try {
+    let state = createGame(['Alice', 'Bob']);
+    // Simulate losing one influence
+    state.players[0].influences = [state.players[0].influences[0]];
+    
+    state = startAction(state, { type: 'exchange', playerId: state.players[0].id });
+    
+    // Pass challenge phase
+    while (state.pendingAction?.phase === 'challenge_action' && state.pendingAction?.waitingForPlayers.length) {
+      const waitingPlayer = state.pendingAction.waitingForPlayers[0];
+      state = pass(state, waitingPlayer);
+    }
+    
+    // Now should be in exchange_select phase
+    let passedCards = state.pendingAction?.exchangeCards?.length === 3; // 1 original + 2 drawn
+    let passedKeep = state.pendingAction?.cardsToKeep === 1;
+    
+    if (state.pendingAction?.phase === 'exchange_select' && passedCards && passedKeep) {
+      // Select first card to keep
+      const cardsToKeep = state.pendingAction!.exchangeCards!.slice(0, 1);
+      state = chooseExchangeCards(state, state.players[0].id, cardsToKeep);
+    }
+    
+    const passed = passedCards && passedKeep && 
+                   state.players[0].influences.length === 1 && 
+                   state.pendingAction === null;
+    results.push({
+      scenario: 'Exchange with 1 influence shows 3 cards and keeps 1',
+      passed,
+      details: passed 
+        ? 'Exchange with 1 influence worked correctly' 
+        : `Cards: ${passedCards}, Keep: ${passedKeep}, Final: ${state.players[0].influences.length}`,
+    });
+  } catch (e) {
+    results.push({ scenario: 'Exchange with 1 influence shows 3 cards and keeps 1', passed: false, details: String(e) });
   }
 
   // Test 17: Steal from player with 1 coin only takes 1
