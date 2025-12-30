@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ActionType,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/gameTypes";
 import { getValidActions, getValidTargets, getCurrentPlayer } from "@/lib/gameEngine";
 import { cn } from "@/lib/utils";
+import { ChallengeTimer } from "./ChallengeTimer";
 import {
   Dialog,
   DialogContent,
@@ -299,6 +300,9 @@ export const ActionPanel = ({
       (phase === "challenge_action" && claimedChar) ||
       (phase === "challenge_block" && blockerCharacter);
 
+    // Create a unique key for the timer based on the pending action phase
+    const timerKey = `${phase}-${action.playerId}-${action.type}-${Date.now()}`;
+
     return (
       <div className="bg-card border border-border rounded-xl p-4">
         <h3 className="font-display text-lg text-foreground mb-2">
@@ -315,6 +319,16 @@ export const ActionPanel = ({
           {phase === "challenge_block" &&
             `Challenge if you think they're bluffing about having ${blockerCharacter}.`}
         </p>
+
+        {/* Challenge Timer */}
+        <div className="mb-4">
+          <ChallengeTimer
+            duration={20}
+            onTimeout={onPass}
+            isActive={true}
+            resetKey={`${phase}-${action.playerId}`}
+          />
+        </div>
 
         <div className="flex flex-wrap gap-2">
           {canChallenge && (
