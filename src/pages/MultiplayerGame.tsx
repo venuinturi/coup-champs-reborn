@@ -15,6 +15,7 @@ import { GameChat } from '@/components/game/GameChat';
 import { VoiceChat } from '@/components/game/VoiceChat';
 import { toast } from '@/hooks/use-toast';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { usePlayerAuth } from '@/hooks/usePlayerAuth';
 
 const MultiplayerGame = () => {
   const navigate = useNavigate();
@@ -24,21 +25,12 @@ const MultiplayerGame = () => {
 
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [localPlayerId, setLocalPlayerId] = useState<string>('');
+  
+  // Use secure anonymous auth instead of localStorage
+  const { playerId: localPlayerId, loading: authLoading } = usePlayerAuth();
   
   const channelRef = useRef<RealtimeChannel | null>(null);
   const isMountedRef = useRef(true);
-
-  // Get player ID from localStorage
-  useEffect(() => {
-    let playerId = localStorage.getItem('coup_player_id');
-    if (!playerId) {
-      playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem('coup_player_id', playerId);
-    }
-    console.log('Local player ID:', playerId);
-    setLocalPlayerId(playerId);
-  }, []);
 
   // Fetch initial game state and subscribe to updates
   useEffect(() => {
@@ -47,10 +39,16 @@ const MultiplayerGame = () => {
       return;
     }
 
+    // Wait for auth to be ready
+    if (authLoading || !localPlayerId) {
+      console.log('Waiting for auth to be ready...');
+      return;
+    }
+
     isMountedRef.current = true;
 
     const fetchAndSubscribe = async () => {
-      console.log('Fetching room:', roomCode);
+      console.log('Fetching room:', roomCode, 'Player:', localPlayerId);
       
       // Fetch room
       const { data: roomData, error } = await supabase
@@ -122,7 +120,7 @@ const MultiplayerGame = () => {
         channelRef.current = null;
       }
     };
-  }, [roomCode, navigate]);
+  }, [roomCode, navigate, authLoading, localPlayerId]);
 
   // Update game state in database
   const updateGameState = useCallback(async (newState: GameState) => {
@@ -291,10 +289,12 @@ const MultiplayerGame = () => {
     }
   };
 
-  if (!gameState || !localPlayerId) {
+  if (!gameState || !localPlayerId || authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-foreground">Loading game...</div>
+        <div className="text-foreground">
+          {authLoading ? 'Authenticating...' : 'Loading game...'}
+        </div>
       </div>
     );
   }

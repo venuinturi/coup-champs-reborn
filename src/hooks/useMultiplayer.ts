@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { GameState } from '@/lib/gameTypes';
 import { toast } from '@/hooks/use-toast';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { usePlayerAuth } from './usePlayerAuth';
 
 export interface RoomPlayer {
   id: string;
@@ -25,16 +26,6 @@ export interface GameRoom {
   updated_at: string;
 }
 
-// Generate a unique player ID for this session
-const getOrCreatePlayerId = (): string => {
-  let playerId = localStorage.getItem('coup_player_id');
-  if (!playerId) {
-    playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('coup_player_id', playerId);
-  }
-  return playerId;
-};
-
 // Generate a random 6-character room code
 const generateRoomCode = (): string => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -51,7 +42,9 @@ export const useMultiplayer = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const playerId = useRef(getOrCreatePlayerId()).current;
+  // Use secure anonymous auth instead of localStorage
+  const { playerId, loading: authLoading } = usePlayerAuth();
+  
   const roomIdRef = useRef<string | null>(null);
   const channelsRef = useRef<RealtimeChannel[]>([]);
   const isMountedRef = useRef(true);
@@ -71,6 +64,15 @@ export const useMultiplayer = () => {
 
   // Create a new room
   const createRoom = useCallback(async (hostName: string): Promise<string | null> => {
+    if (!playerId) {
+      toast({
+        title: 'Error',
+        description: 'Authentication not ready. Please try again.',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -126,6 +128,15 @@ export const useMultiplayer = () => {
 
   // Join an existing room
   const joinRoom = useCallback(async (roomCode: string, playerName: string): Promise<boolean> => {
+    if (!playerId) {
+      toast({
+        title: 'Error',
+        description: 'Authentication not ready. Please try again.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -390,7 +401,7 @@ export const useMultiplayer = () => {
     room,
     players,
     playerId,
-    loading,
+    loading: loading || authLoading,
     error,
     createRoom,
     joinRoom,
