@@ -5,6 +5,7 @@ import { createGame, startAction, pass, getCurrentPlayer, challenge, block } fro
 import { supabase } from "@/integrations/supabase/client";
 import { GameBoard } from "@/components/game/GameBoard";
 import { toast } from "@/hooks/use-toast";
+import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 
 const Game = () => {
   const navigate = useNavigate();
@@ -15,21 +16,12 @@ const Game = () => {
 
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [localPlayerId, setLocalPlayerId] = useState<string>("player_0");
+  
+  // Use secure anonymous auth instead of localStorage
+  const { playerId, loading: authLoading } = usePlayerAuth();
+  const localPlayerId = playerId || "player_0"; // Fallback for single player
 
   const isMultiplayer = !!roomCode;
-
-  // Get or create player ID
-  useEffect(() => {
-    if (isMultiplayer) {
-      let playerId = localStorage.getItem('coup_player_id');
-      if (!playerId) {
-        playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('coup_player_id', playerId);
-      }
-      setLocalPlayerId(playerId);
-    }
-  }, [isMultiplayer]);
 
   // Initialize local game with bots
   useEffect(() => {
