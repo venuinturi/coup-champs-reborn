@@ -10,9 +10,13 @@ interface GameLogProps {
 export const GameLog = ({ logs }: GameLogProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Reverse logs to show newest first
+  const reversedLogs = [...logs].reverse();
+
   useEffect(() => {
+    // Scroll to top to show latest logs
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTop = 0;
     }
   }, [logs]);
 
@@ -38,9 +42,9 @@ export const GameLog = ({ logs }: GameLogProps) => {
       <h3 className="font-display text-sm text-muted-foreground mb-2">Game Log</h3>
       <ScrollArea className="h-36" ref={scrollRef}>
         <div className="space-y-1">
-          {logs.map((log, index) => (
+          {reversedLogs.map((log, index) => (
             <div
-              key={index}
+              key={logs.length - 1 - index}
               className={cn("text-sm", getLogColor(log.type))}
             >
               <span className="text-muted-foreground text-xs mr-2">
