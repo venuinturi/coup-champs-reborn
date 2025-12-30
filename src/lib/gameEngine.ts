@@ -548,11 +548,17 @@ export const resolveAction = (state: GameState, action: GameAction): GameState =
     }
 
     case 'exchange': {
-      // Draw 2 cards from deck
-      const drawnCards = [newState.deck.pop()!, newState.deck.pop()!];
       const playerCards = newState.players[playerIndex].influences;
+      const numPlayerCards = playerCards.length;
+      
+      // Draw same number of cards as player has (1 card = draw 1, 2 cards = draw 2)
+      const drawnCards: Character[] = [];
+      for (let i = 0; i < numPlayerCards && newState.deck.length > 0; i++) {
+        drawnCards.push(newState.deck.pop()!);
+      }
+      
       const allCards = [...playerCards, ...drawnCards];
-      const numToKeep = playerCards.length; // Keep the same number of cards they had
+      const numToKeep = numPlayerCards; // Keep the same number of cards they had
       
       // Enter exchange selection phase
       return {
