@@ -11,6 +11,8 @@ import {
 } from '@/lib/gameEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { GameBoard } from '@/components/game/GameBoard';
+import { GameChat } from '@/components/game/GameChat';
+import { VoiceChat } from '@/components/game/VoiceChat';
 import { toast } from '@/hooks/use-toast';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -303,19 +305,37 @@ const MultiplayerGame = () => {
   console.log('Current turn:', currentPlayer?.name, 'Local player:', localPlayerId, 'Is my turn:', currentPlayer?.id === localPlayerId);
 
   return (
-    <GameBoard
-      initialState={gameState}
-      localPlayerId={localPlayerId}
-      onGameEnd={handleGameEnd}
-      onRestart={handleRestart}
-      onAction={handleAction}
-      onChallenge={handleChallenge}
-      onBlock={handleBlock}
-      onPass={handlePass}
-      onChooseCardToLose={handleChooseCardToLose}
-      onExchangeSelect={handleExchangeSelect}
-      isMultiplayer
-    />
+    <>
+      <GameBoard
+        initialState={gameState}
+        localPlayerId={localPlayerId}
+        onGameEnd={handleGameEnd}
+        onRestart={handleRestart}
+        onAction={handleAction}
+        onChallenge={handleChallenge}
+        onBlock={handleBlock}
+        onPass={handlePass}
+        onChooseCardToLose={handleChooseCardToLose}
+        onExchangeSelect={handleExchangeSelect}
+        isMultiplayer
+      />
+      
+      {/* Chat and Voice */}
+      {roomId && (
+        <>
+          <GameChat 
+            roomId={roomId} 
+            playerId={localPlayerId} 
+            playerName={playerName} 
+          />
+          <VoiceChat 
+            roomId={roomId} 
+            playerId={localPlayerId} 
+            playerName={playerName} 
+          />
+        </>
+      )}
+    </>
   );
 };
 

@@ -50,6 +50,41 @@ export type Database = {
         }
         Relationships: []
       }
+      room_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          player_id: string
+          player_name: string
+          room_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          player_id: string
+          player_name: string
+          room_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          player_id?: string
+          player_name?: string
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "game_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       room_players: {
         Row: {
           id: string

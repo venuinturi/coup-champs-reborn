@@ -1,6 +1,13 @@
 import { Character, CHARACTER_DESCRIPTIONS } from "@/lib/gameTypes";
 import { cn } from "@/lib/utils";
 
+// Import card images
+import dukeImage from "@/assets/cards/duke.png";
+import assassinImage from "@/assets/cards/assassin.png";
+import ambassadorImage from "@/assets/cards/ambassador.png";
+import captainImage from "@/assets/cards/captain.png";
+import contessaImage from "@/assets/cards/contessa.png";
+
 interface CharacterCardProps {
   character: Character;
   isRevealed?: boolean;
@@ -11,19 +18,19 @@ interface CharacterCardProps {
 }
 
 const CHARACTER_COLORS: Record<Character, string> = {
-  Duke: "from-violet-600 to-violet-900",
-  Assassin: "from-gray-700 to-gray-900",
-  Captain: "from-blue-600 to-blue-900",
-  Ambassador: "from-emerald-600 to-emerald-900",
-  Contessa: "from-rose-600 to-rose-900",
+  Duke: "from-red-700 to-red-950",
+  Assassin: "from-purple-800 to-purple-950",
+  Captain: "from-blue-700 to-blue-950",
+  Ambassador: "from-orange-600 to-orange-900",
+  Contessa: "from-rose-700 to-rose-950",
 };
 
-const CHARACTER_ICONS: Record<Character, string> = {
-  Duke: "👑",
-  Assassin: "🗡️",
-  Captain: "⚓",
-  Ambassador: "📜",
-  Contessa: "💎",
+const CHARACTER_IMAGES: Record<Character, string> = {
+  Duke: dukeImage,
+  Assassin: assassinImage,
+  Captain: captainImage,
+  Ambassador: ambassadorImage,
+  Contessa: contessaImage,
 };
 
 export const CharacterCard = ({
@@ -60,24 +67,30 @@ export const CharacterCard = ({
       onClick={isSelectable ? onClick : undefined}
       className={cn(
         sizeClasses[size],
-        "rounded-lg bg-gradient-to-b border-2",
-        CHARACTER_COLORS[character],
+        "rounded-lg overflow-hidden border-2 relative",
         isRevealed ? "opacity-50 grayscale" : "",
         isSelectable && "cursor-pointer hover:scale-105 transition-transform",
         isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
-        "flex flex-col items-center justify-between p-2",
         "shadow-lg"
       )}
     >
-      <span className={size === "sm" ? "text-xl" : "text-3xl"}>
-        {CHARACTER_ICONS[character]}
-      </span>
-      <div className="text-center">
-        <div className="font-display font-semibold text-foreground">
+      {/* Card image */}
+      <img 
+        src={CHARACTER_IMAGES[character]} 
+        alt={character}
+        className="w-full h-full object-cover"
+      />
+      
+      {/* Overlay with character name */}
+      <div className={cn(
+        "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent",
+        size === "sm" ? "p-1" : "p-2"
+      )}>
+        <div className="font-display font-semibold text-white text-center">
           {character}
         </div>
         {size !== "sm" && (
-          <div className="text-[10px] text-foreground/70 leading-tight mt-1">
+          <div className="text-[10px] text-white/80 leading-tight mt-0.5 text-center">
             {CHARACTER_DESCRIPTIONS[character]}
           </div>
         )}
