@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
+import { Mic, MicOff, Phone, PhoneOff, Volume2, VolumeX, Minimize2, Maximize2, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
@@ -29,6 +29,10 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
   const [isDeafened, setIsDeafened] = useState(false);
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [position, setPosition] = useState({ x: 16, y: 0 }); // y will be calculated from bottom
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number } | null>(null);
   
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -36,6 +40,7 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const peerConnectionsRef = useRef<Map<string, PeerConnection>>(new Map());
+  const isDisconnectingRef = useRef(false);
 
   // ICE servers configuration (using public STUN servers)
   const iceServers = {
@@ -52,6 +57,47 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
     };
   }, []);
 
+  // Drag handling
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: position.x,
+      initialY: position.y,
+    };
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !dragRef.current) return;
+      
+      const deltaX = e.clientX - dragRef.current.startX;
+      const deltaY = dragRef.current.startY - e.clientY; // Inverted because y is from bottom
+      
+      setPosition({
+        x: Math.max(0, Math.min(window.innerWidth - 200, dragRef.current.initialX + deltaX)),
+        y: Math.max(0, Math.min(window.innerHeight - 200, dragRef.current.initialY + deltaY)),
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragRef.current = null;
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
   const updateAudioLevel = useCallback(() => {
     if (!analyserRef.current) return;
     
@@ -65,6 +111,8 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
   }, []);
 
   const createPeerConnection = useCallback(async (targetId: string, isInitiator: boolean) => {
+    if (isDisconnectingRef.current) return null;
+    
     const pc = new RTCPeerConnection(iceServers);
     const audioEl = document.createElement('audio');
     audioEl.autoplay = true;
@@ -88,7 +136,7 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
 
     // Handle ICE candidates
     pc.onicecandidate = async (event) => {
-      if (event.candidate && channelRef.current) {
+      if (event.candidate && channelRef.current && !isDisconnectingRef.current) {
         await channelRef.current.send({
           type: 'broadcast',
           event: 'ice-candidate',
@@ -103,7 +151,7 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
 
     peerConnectionsRef.current.set(targetId, { connection: pc, audioElement: audioEl });
 
-    if (isInitiator) {
+    if (isInitiator && !isDisconnectingRef.current) {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       
@@ -124,13 +172,16 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
   }, [playerId, isDeafened]);
 
   const handleOffer = useCallback(async (from: string, sdp: RTCSessionDescriptionInit) => {
+    if (isDisconnectingRef.current) return;
     const pc = await createPeerConnection(from, false);
+    if (!pc) return;
+    
     await pc.setRemoteDescription(new RTCSessionDescription(sdp));
     
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     
-    if (channelRef.current) {
+    if (channelRef.current && !isDisconnectingRef.current) {
       await channelRef.current.send({
         type: 'broadcast',
         event: 'answer',
@@ -159,6 +210,8 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
 
   const connect = async () => {
     try {
+      isDisconnectingRef.current = false;
+      
       // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -193,6 +246,7 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
 
       channel
         .on('presence', { event: 'sync' }, () => {
+          if (isDisconnectingRef.current) return;
           const state = channel.presenceState();
           const newParticipants: VoiceParticipant[] = [];
           
@@ -211,6 +265,7 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
           setParticipants(newParticipants);
         })
         .on('presence', { event: 'join' }, async ({ key, newPresences }) => {
+          if (isDisconnectingRef.current) return;
           if (key !== playerId) {
             toast({
               title: 'Player joined voice',
@@ -224,33 +279,39 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
           // Clean up peer connection
           const peer = peerConnectionsRef.current.get(key);
           if (peer) {
-            peer.connection.close();
+            peer.audioElement.srcObject = null;
             peer.audioElement.remove();
+            peer.connection.close();
             peerConnectionsRef.current.delete(key);
           }
           
-          toast({
-            title: 'Player left voice',
-            description: `${(leftPresences[0] as any)?.name || 'Someone'} left voice chat`,
-          });
+          if (!isDisconnectingRef.current) {
+            toast({
+              title: 'Player left voice',
+              description: `${(leftPresences[0] as any)?.name || 'Someone'} left voice chat`,
+            });
+          }
         })
         .on('broadcast', { event: 'offer' }, async ({ payload }) => {
+          if (isDisconnectingRef.current) return;
           if (payload.to === playerId) {
             await handleOffer(payload.from, payload.sdp);
           }
         })
         .on('broadcast', { event: 'answer' }, async ({ payload }) => {
+          if (isDisconnectingRef.current) return;
           if (payload.to === playerId) {
             await handleAnswer(payload.from, payload.sdp);
           }
         })
         .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
+          if (isDisconnectingRef.current) return;
           if (payload.to === playerId) {
             await handleIceCandidate(payload.from, payload.candidate);
           }
         })
         .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
+          if (status === 'SUBSCRIBED' && !isDisconnectingRef.current) {
             await channel.track({
               name: playerName,
               isMuted: false,
@@ -276,40 +337,72 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
     }
   };
 
-  const disconnect = () => {
-    // Stop audio level monitoring
+  const disconnect = async () => {
+    // Prevent re-entry
+    if (isDisconnectingRef.current) return;
+    isDisconnectingRef.current = true;
+    
+    // Stop audio level monitoring immediately
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     
-    // Close all peer connections
+    // Close all peer connections and remove audio elements
     peerConnectionsRef.current.forEach(({ connection, audioElement }) => {
-      connection.close();
+      // Stop all tracks on the audio element
+      if (audioElement.srcObject) {
+        const mediaStream = audioElement.srcObject as MediaStream;
+        mediaStream.getTracks().forEach(track => track.stop());
+        audioElement.srcObject = null;
+      }
+      audioElement.pause();
       audioElement.remove();
+      connection.close();
     });
     peerConnectionsRef.current.clear();
     
-    // Stop local stream
+    // Stop local stream - this is critical to stop hearing
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current.getTracks().forEach((track) => {
+        track.stop();
+        track.enabled = false;
+      });
       localStreamRef.current = null;
     }
     
     // Close audio context
     if (audioContextRef.current) {
-      audioContextRef.current.close();
+      try {
+        await audioContextRef.current.close();
+      } catch (e) {
+        // Context may already be closed
+      }
       audioContextRef.current = null;
     }
+    analyserRef.current = null;
     
-    // Leave presence channel
+    // Untrack presence and leave channel
     if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
+      try {
+        await channelRef.current.untrack();
+      } catch (e) {
+        // May fail if already untracked
+      }
+      await supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
     
     setIsConnected(false);
     setParticipants([]);
     setAudioLevel(0);
+    setIsMuted(false);
+    setIsDeafened(false);
+    
+    toast({
+      title: 'Voice Disconnected',
+      description: 'You have left the voice channel',
+    });
   };
 
   const toggleMute = async () => {
@@ -342,96 +435,143 @@ export const VoiceChat = ({ roomId, playerId, playerName }: VoiceChatProps) => {
   };
 
   return (
-    <div className="fixed bottom-4 left-4 z-50">
+    <div 
+      className="fixed z-50"
+      style={{ 
+        left: `${position.x}px`, 
+        bottom: `${position.y + 16}px`,
+      }}
+    >
       <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-        {/* Header */}
-        <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center gap-2">
+        {/* Header with drag handle */}
+        <div 
+          className={cn(
+            "bg-muted/50 px-3 py-2 border-b border-border flex items-center gap-2",
+            "cursor-grab active:cursor-grabbing select-none"
+          )}
+          onMouseDown={handleMouseDown}
+        >
+          <GripVertical className="w-3 h-3 text-muted-foreground" />
           <div className={cn(
             "w-2 h-2 rounded-full",
             isConnected ? "bg-green-500" : "bg-muted-foreground"
           )} />
-          <span className="text-xs font-medium text-foreground">
+          <span className="text-xs font-medium text-foreground flex-1">
             Voice Chat {participants.length > 0 && `(${participants.length})`}
           </span>
+          <Button
+            onClick={() => setIsMinimized(!isMinimized)}
+            size="icon"
+            variant="ghost"
+            className="h-5 w-5"
+          >
+            {isMinimized ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
+          </Button>
         </div>
 
-        {/* Participants */}
-        {isConnected && participants.length > 0 && (
-          <div className="px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
-            {participants.map((p) => (
-              <div
-                key={p.id}
-                className={cn(
-                  "flex items-center gap-2 text-xs rounded px-2 py-1",
-                  p.id === playerId ? "bg-primary/10" : "bg-muted/30"
-                )}
-              >
-                <div className={cn(
-                  "w-1.5 h-1.5 rounded-full",
-                  p.isMuted ? "bg-muted-foreground" : "bg-green-500"
-                )} />
-                <span className="truncate flex-1">{p.name}</span>
-                {p.isMuted && <MicOff className="w-3 h-3 text-muted-foreground" />}
+        {!isMinimized && (
+          <>
+            {/* Participants */}
+            {isConnected && participants.length > 0 && (
+              <div className="px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
+                {participants.map((p) => (
+                  <div
+                    key={p.id}
+                    className={cn(
+                      "flex items-center gap-2 text-xs rounded px-2 py-1",
+                      p.id === playerId ? "bg-primary/10" : "bg-muted/30"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-1.5 h-1.5 rounded-full",
+                      p.isMuted ? "bg-muted-foreground" : "bg-green-500"
+                    )} />
+                    <span className="truncate flex-1">{p.name}</span>
+                    {p.isMuted && <MicOff className="w-3 h-3 text-muted-foreground" />}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
-        {/* Audio level indicator */}
-        {isConnected && !isMuted && (
-          <div className="px-3 py-1">
-            <div className="h-1 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-green-500 transition-all duration-75"
-                style={{ width: `${audioLevel * 100}%` }}
-              />
+            {/* Audio level indicator */}
+            {isConnected && !isMuted && (
+              <div className="px-3 py-1">
+                <div className="h-1 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-green-500 transition-all duration-75"
+                    style={{ width: `${audioLevel * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Controls */}
+            <div className="px-3 py-2 flex gap-2">
+              {!isConnected ? (
+                <Button
+                  onClick={connect}
+                  size="sm"
+                  variant="default"
+                  className="flex-1"
+                >
+                  <Phone className="w-4 h-4 mr-1" />
+                  Join Voice
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    onClick={toggleMute}
+                    size="icon"
+                    variant={isMuted ? "destructive" : "secondary"}
+                    className="h-8 w-8"
+                  >
+                    {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </Button>
+                  
+                  <Button
+                    onClick={toggleDeafen}
+                    size="icon"
+                    variant={isDeafened ? "destructive" : "secondary"}
+                    className="h-8 w-8"
+                  >
+                    {isDeafened ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </Button>
+                  
+                  <Button
+                    onClick={disconnect}
+                    size="icon"
+                    variant="destructive"
+                    className="h-8 w-8"
+                  >
+                    <PhoneOff className="w-4 h-4" />
+                  </Button>
+                </>
+              )}
             </div>
+          </>
+        )}
+        
+        {/* Minimized view - just show controls */}
+        {isMinimized && isConnected && (
+          <div className="px-2 py-1 flex gap-1">
+            <Button
+              onClick={toggleMute}
+              size="icon"
+              variant={isMuted ? "destructive" : "ghost"}
+              className="h-6 w-6"
+            >
+              {isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+            </Button>
+            <Button
+              onClick={disconnect}
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 text-destructive hover:text-destructive"
+            >
+              <PhoneOff className="w-3 h-3" />
+            </Button>
           </div>
         )}
-
-        {/* Controls */}
-        <div className="px-3 py-2 flex gap-2">
-          {!isConnected ? (
-            <Button
-              onClick={connect}
-              size="sm"
-              variant="default"
-              className="flex-1"
-            >
-              <Phone className="w-4 h-4 mr-1" />
-              Join Voice
-            </Button>
-          ) : (
-            <>
-              <Button
-                onClick={toggleMute}
-                size="icon"
-                variant={isMuted ? "destructive" : "secondary"}
-                className="h-8 w-8"
-              >
-                {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </Button>
-              
-              <Button
-                onClick={toggleDeafen}
-                size="icon"
-                variant={isDeafened ? "destructive" : "secondary"}
-                className="h-8 w-8"
-              >
-                {isDeafened ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </Button>
-              
-              <Button
-                onClick={disconnect}
-                size="icon"
-                variant="destructive"
-                className="h-8 w-8"
-              >
-                <PhoneOff className="w-4 h-4" />
-              </Button>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );
