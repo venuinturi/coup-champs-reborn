@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Crown, Spade, Circle } from "lucide-react";
+import { Crown, Spade, Circle, Layers } from "lucide-react";
 
 const games = [
   {
@@ -15,11 +15,11 @@ const games = [
   {
     id: "poker",
     name: "Poker",
-    description: "The classic card game of skill and strategy. Bet, bluff, and win big.",
+    description: "Texas Hold'em - The classic card game of skill and strategy.",
     icon: Spade,
     path: "/poker",
     color: "from-red-500 to-rose-600",
-    available: false,
+    available: true,
   },
   {
     id: "blackjack",
@@ -28,7 +28,16 @@ const games = [
     icon: Circle,
     path: "/blackjack",
     color: "from-emerald-500 to-green-600",
-    available: false,
+    available: true,
+  },
+  {
+    id: "rummy",
+    name: "Indian Rummy",
+    description: "13-card rummy with sets and sequences. Form melds to declare and win!",
+    icon: Layers,
+    path: "/rummy",
+    color: "from-purple-500 to-violet-600",
+    available: true,
   },
 ];
 
