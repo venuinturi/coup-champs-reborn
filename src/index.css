@@ -132,4 +132,53 @@
       filter: drop-shadow(0 0 40px hsl(45 100% 50% / 0.6));
     }
   }
+
+  /* Card perspective for 3D flip */
+  .card-perspective {
+    perspective: 600px;
+  }
+
+  .card-3d {
+    transform-style: preserve-3d;
+    transition: transform 0.5s ease-in-out;
+  }
+
+  .card-3d-flipped {
+    transform: rotateY(180deg);
+  }
+
+  /* Staggered animation delays */
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
+  .stagger-7 { animation-delay: 0.35s; }
+  .stagger-8 { animation-delay: 0.4s; }
+  .stagger-9 { animation-delay: 0.45s; }
+  .stagger-10 { animation-delay: 0.5s; }
+  .stagger-11 { animation-delay: 0.55s; }
+  .stagger-12 { animation-delay: 0.6s; }
+  .stagger-13 { animation-delay: 0.65s; }
+
+  /* Confetti particle */
+  .confetti-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    animation: confetti-fall 2s ease-in forwards;
+    pointer-events: none;
+  }
+
+  /* Hover scale for interactive elements */
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+
+  /* Turn indicator glow */
+  .turn-glow {
+    box-shadow: 0 0 15px hsl(var(--primary) / 0.4), 0 0 30px hsl(var(--primary) / 0.2);
+  }
 }
