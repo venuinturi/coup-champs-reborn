@@ -78,10 +78,7 @@ export const BlackjackTable = ({
   }, [gameState.phase, isWinner, isLoser, localResult, localPlayer?.isBusted, gameState.players]);
 
   const handlePlaceBet = () => {
-    const maxChips = localPlayer?.chips || 0;
-    const isValid = betAmount >= gameState.minBet && betAmount <= Math.min(gameState.maxBet, maxChips);
-    console.log('BlackjackTable handlePlaceBet:', { betAmount, minBet: gameState.minBet, maxBet: gameState.maxBet, maxChips, isValid, localPlayerId, localPlayerFound: !!localPlayer });
-    if (isValid) {
+    if (betAmount >= gameState.minBet && betAmount <= Math.min(gameState.maxBet, localPlayer?.chips || 0)) {
       onPlaceBet(betAmount);
     }
   };
