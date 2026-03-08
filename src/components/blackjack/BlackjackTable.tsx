@@ -18,6 +18,7 @@ interface BlackjackTableProps {
   onPlaceBet: (amount: number) => void;
   onStartRound: () => void;
   onNewRound: () => void;
+  isSpectator?: boolean;
 }
 
 export const BlackjackTable = ({
@@ -27,6 +28,7 @@ export const BlackjackTable = ({
   onPlaceBet,
   onStartRound,
   onNewRound,
+  isSpectator = false,
 }: BlackjackTableProps) => {
   const [betAmount, setBetAmount] = useState<number>(gameState.minBet);
   const prevPhaseRef = useRef(gameState.phase);

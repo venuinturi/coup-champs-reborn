@@ -14,6 +14,7 @@ const RummyGame = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const playerName = searchParams.get("name") || "Player";
+  const isSpectator = searchParams.get("spectator") === "true";
   const { playerId } = usePlayerAuth();
   const [gameState, setGameState] = useState<RummyGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -66,14 +67,20 @@ const RummyGame = () => {
     <>
       <div className="min-h-screen bg-background p-4">
         <Button variant="ghost" className="mb-4" onClick={() => navigate('/rummy')}>← Leave Game</Button>
+        {isSpectator && (
+          <div className="mb-4 flex items-center justify-center gap-2 text-muted-foreground bg-muted/30 rounded-lg py-2 px-4 mx-auto w-fit">
+            <span>👁️ Spectator Mode</span>
+          </div>
+        )}
         <RummyTable
           gameState={gameState}
           localPlayerId={playerId}
-          onDrawDeck={() => updateGameState(drawFromDeck(gameState, playerId))}
-          onDrawDiscard={() => updateGameState(drawFromDiscard(gameState, playerId))}
-          onDiscard={(i) => updateGameState(discardCard(gameState, playerId, i))}
-          onDrop={() => updateGameState(dropFromGame(gameState, playerId))}
-          onDeclare={(melds: Meld[]) => updateGameState(declareGame(gameState, playerId, melds))}
+          onDrawDeck={isSpectator ? () => {} : () => updateGameState(drawFromDeck(gameState, playerId))}
+          onDrawDiscard={isSpectator ? () => {} : () => updateGameState(drawFromDiscard(gameState, playerId))}
+          onDiscard={isSpectator ? () => {} : (i) => updateGameState(discardCard(gameState, playerId, i))}
+          onDrop={isSpectator ? () => {} : () => updateGameState(dropFromGame(gameState, playerId))}
+          onDeclare={isSpectator ? () => {} : (melds: Meld[]) => updateGameState(declareGame(gameState, playerId, melds))}
+          isSpectator={isSpectator}
         />
       </div>
       {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}

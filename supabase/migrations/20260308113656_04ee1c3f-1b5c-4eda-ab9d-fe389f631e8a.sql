@@ -1,0 +1,1 @@
+ALTER TABLE public.room_players ADD COLUMN is_spectator boolean NOT NULL DEFAULT false;

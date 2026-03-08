@@ -19,6 +19,7 @@ interface RummyTableProps {
   onDiscard: (cardIndex: number) => void;
   onDrop: () => void;
   onDeclare: (melds: Meld[]) => void;
+  isSpectator?: boolean;
 }
 
 export const RummyTable = ({
@@ -29,6 +30,7 @@ export const RummyTable = ({
   onDrop,
   onDiscard,
   onDeclare,
+  isSpectator = false,
 }: RummyTableProps) => {
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [melds, setMelds] = useState<Meld[]>([]);

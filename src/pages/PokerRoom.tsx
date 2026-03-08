@@ -17,6 +17,7 @@ interface RoomPlayer {
   player_name: string;
   is_host: boolean;
   is_ready: boolean;
+  is_spectator: boolean;
 }
 
 interface PokerConfig {
@@ -50,7 +51,10 @@ const PokerRoom = () => {
 
   const isHost = room?.host_id === playerId;
   const currentPlayer = players.find(p => p.player_id === playerId);
-  const allReady = players.length >= 2 && players.every(p => p.is_ready);
+  const activePlayers = players.filter(p => !p.is_spectator);
+  const spectators = players.filter(p => p.is_spectator);
+  const allReady = activePlayers.length >= 2 && activePlayers.every(p => p.is_ready);
+  const isSpectator = currentPlayer?.is_spectator || false;
 
   // Fetch room and subscribe to updates
   useEffect(() => {
@@ -95,7 +99,8 @@ const PokerRoom = () => {
           
           // Navigate to game if status changed to playing
           if (newRoom.status === 'playing') {
-            navigate(`/poker/game/${roomCode}?name=${encodeURIComponent(playerName)}`);
+            const spectatorParam = isSpectator ? '&spectator=true' : '';
+            navigate(`/poker/game/${roomCode}?name=${encodeURIComponent(playerName)}${spectatorParam}`);
           }
         }
       })
@@ -126,9 +131,10 @@ const PokerRoom = () => {
   // Navigate to game when status changes
   useEffect(() => {
     if (room?.status === 'playing') {
-      navigate(`/poker/game/${roomCode}?name=${encodeURIComponent(playerName)}`);
+      const spectatorParam = isSpectator ? '&spectator=true' : '';
+      navigate(`/poker/game/${roomCode}?name=${encodeURIComponent(playerName)}${spectatorParam}`);
     }
-  }, [room?.status, roomCode, navigate, playerName]);
+  }, [room?.status, roomCode, navigate, playerName, isSpectator]);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(roomCode || "");
@@ -163,7 +169,7 @@ const PokerRoom = () => {
       const [smallBlind, bigBlind] = blindsStr.split("/").map(Number);
 
       // Create game state
-      const playerData = players.map(p => ({ id: p.player_id, name: p.player_name }));
+      const playerData = activePlayers.map(p => ({ id: p.player_id, name: p.player_name }));
       let gameState = createPokerGame(playerData, startingChips, smallBlind, bigBlind);
       gameState = startHand(gameState);
 
@@ -248,70 +254,101 @@ const PokerRoom = () => {
         </div>
       </div>
 
-      {/* Players List */}
-      <div className="w-full max-w-md space-y-3 mb-8">
-        <div className="flex items-center gap-2 text-muted-foreground mb-4">
-          <Users className="w-4 h-4" />
-          <span>Players ({players.length})</span>
-        </div>
+        {/* Players List */}
+        <div className="w-full max-w-md space-y-3 mb-8">
+          <div className="flex items-center gap-2 text-muted-foreground mb-4">
+            <Users className="w-4 h-4" />
+            <span>Players ({activePlayers.length})</span>
+          </div>
 
-        {players.map((player) => (
-          <div
-            key={player.id}
-            className={cn(
-              "flex items-center justify-between p-4 rounded-lg bg-card border-2 transition-colors",
-              player.is_ready ? "border-green-500/50" : "border-border"
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <PlayerAvatar
-                preset={profiles.get(player.player_id)?.avatar_preset}
-                customUrl={profiles.get(player.player_id)?.avatar_url}
-                size="md"
-                showRing={player.is_ready}
-                ringColor="ring-green-500"
-              />
-              <div>
-                <span className="font-medium flex items-center gap-1.5">
-                  {player.is_host && <Crown className="w-4 h-4 text-primary" />}
-                  {player.player_name}
-                </span>
-                {player.player_id === playerId && (
-                  <span className="text-xs text-muted-foreground">You</span>
-                )}
+          {activePlayers.map((player) => (
+            <div
+              key={player.id}
+              className={cn(
+                "flex items-center justify-between p-4 rounded-lg bg-card border-2 transition-colors",
+                player.is_ready ? "border-green-500/50" : "border-border"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <PlayerAvatar
+                  preset={profiles.get(player.player_id)?.avatar_preset}
+                  customUrl={profiles.get(player.player_id)?.avatar_url}
+                  size="md"
+                  showRing={player.is_ready}
+                  ringColor="ring-green-500"
+                />
+                <div>
+                  <span className="font-medium flex items-center gap-1.5">
+                    {player.is_host && <Crown className="w-4 h-4 text-primary" />}
+                    {player.player_name}
+                  </span>
+                  {player.player_id === playerId && (
+                    <span className="text-xs text-muted-foreground">You</span>
+                  )}
+                </div>
+              </div>
+              <span className={cn(
+                "text-sm font-medium",
+                player.is_ready ? "text-green-500" : "text-muted-foreground"
+              )}>
+                {player.is_ready ? "Ready" : "Not Ready"}
+              </span>
+            </div>
+          ))}
+
+          {/* Spectators */}
+          {spectators.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-border/50">
+              <div className="flex items-center gap-2 text-muted-foreground mb-3">
+                <Eye className="w-4 h-4" />
+                <span className="text-sm">Spectators ({spectators.length})</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {spectators.map((spec) => (
+                  <div key={spec.id} className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-full text-sm">
+                    <PlayerAvatar
+                      preset={profiles.get(spec.player_id)?.avatar_preset}
+                      customUrl={profiles.get(spec.player_id)?.avatar_url}
+                      size="sm"
+                    />
+                    <span className="text-muted-foreground">{spec.player_name}</span>
+                    {spec.player_id === playerId && <span className="text-xs text-primary">(You)</span>}
+                  </div>
+                ))}
               </div>
             </div>
-            <span className={cn(
-              "text-sm font-medium",
-              player.is_ready ? "text-green-500" : "text-muted-foreground"
-            )}>
-              {player.is_ready ? "Ready" : "Not Ready"}
-            </span>
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
 
-      {/* Actions */}
-      <div className="flex gap-4">
-        {isHost ? (
-          <Button
-            size="lg"
-            onClick={handleStartGame}
-            disabled={!allReady || loading}
-            className="bg-gradient-to-r from-red-500 to-rose-600"
-          >
-            {loading ? "Starting..." : players.length < 2 ? "Need 2+ Players" : !allReady ? "Waiting for Ready..." : "Start Game"}
-          </Button>
-        ) : (
-          <Button
-            size="lg"
-            onClick={handleToggleReady}
-            variant={currentPlayer?.is_ready ? "outline" : "default"}
-          >
-            {currentPlayer?.is_ready ? "Cancel Ready" : "Ready Up"}
-          </Button>
-        )}
-      </div>
+        {/* Actions */}
+        <div className="flex gap-4">
+          {isSpectator ? (
+            <div className="text-center">
+              <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                <Eye className="w-5 h-5" />
+                <span>You're watching as a spectator</span>
+              </div>
+              <p className="text-sm text-muted-foreground">Waiting for the game to start...</p>
+            </div>
+          ) : isHost ? (
+            <Button
+              size="lg"
+              onClick={handleStartGame}
+              disabled={!allReady || loading}
+              className="bg-gradient-to-r from-red-500 to-rose-600"
+            >
+              {loading ? "Starting..." : activePlayers.length < 2 ? "Need 2+ Players" : !allReady ? "Waiting for Ready..." : "Start Game"}
+            </Button>
+          ) : (
+            <Button
+              size="lg"
+              onClick={handleToggleReady}
+              variant={currentPlayer?.is_ready ? "outline" : "default"}
+            >
+              {currentPlayer?.is_ready ? "Cancel Ready" : "Ready Up"}
+            </Button>
+          )}
+        </div>
     </div>
   );
 };
