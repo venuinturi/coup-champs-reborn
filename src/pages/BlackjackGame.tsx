@@ -14,6 +14,7 @@ const BlackjackGame = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const playerName = searchParams.get("name") || "Player";
+  const isSpectator = searchParams.get("spectator") === "true";
   const { playerId } = usePlayerAuth();
   const [gameState, setGameState] = useState<BlackjackGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -84,14 +85,23 @@ const BlackjackGame = () => {
     <>
       <div className="min-h-screen bg-background p-4">
         <Button variant="ghost" className="mb-4" onClick={() => navigate('/blackjack')}>← Leave Game</Button>
+        {isSpectator && (
+          <div className="mb-4 flex items-center justify-center gap-2 text-muted-foreground bg-muted/30 rounded-lg py-2 px-4 mx-auto w-fit">
+            <span>👁️ Spectator Mode</span>
+          </div>
+        )}
         <BlackjackTable
           gameState={gameState}
           localPlayerId={playerId}
-          onAction={handleAction}
-          onPlaceBet={handlePlaceBet}
-          onStartRound={() => updateGameState(startDealing(gameState))}
-          onNewRound={() => updateGameState(startNewRound(gameState))}
+          onAction={isSpectator ? () => {} : handleAction}
+          onPlaceBet={isSpectator ? () => {} : handlePlaceBet}
+          onStartRound={isSpectator ? () => {} : () => updateGameState(startDealing(gameState))}
+          onNewRound={isSpectator ? () => {} : () => updateGameState(startNewRound(gameState))}
+          isSpectator={isSpectator}
         />
+      </div>
+      {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}
+    </>
       </div>
       {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}
     </>
