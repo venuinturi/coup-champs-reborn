@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { GameChat } from "@/components/game/GameChat";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
+import { useGameHistory } from "@/hooks/useGameHistory";
 import { RummyGameState, Meld } from "@/lib/rummy/rummyTypes";
 import { drawFromDeck, drawFromDiscard, discardCard, dropFromGame, declareGame } from "@/lib/rummy/rummyEngine";
 import RummyTable from "@/components/rummy/RummyTable";
@@ -16,6 +17,8 @@ const RummyGame = () => {
   const { playerId } = usePlayerAuth();
   const [gameState, setGameState] = useState<RummyGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
+  const { recordGame } = useGameHistory();
+  const recordedRef = useRef(false);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -45,6 +48,15 @@ const RummyGame = () => {
     setGameState(newState);
     await supabase.from('game_rooms').update({ game_state: newState as any }).eq('id', roomId);
   }, [roomId]);
+
+  // Record game result
+  useEffect(() => {
+    if (gameState?.phase === 'finished' && gameState.winner && playerId && !recordedRef.current) {
+      recordedRef.current = true;
+      const isWinner = gameState.winner === playerId;
+      recordGame(playerId, playerName, 'rummy', isWinner ? 'win' : 'loss', roomCode);
+    }
+  }, [gameState?.phase, gameState?.winner, playerId]);
 
   if (!gameState || !playerId) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
