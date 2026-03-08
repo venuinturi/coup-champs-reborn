@@ -2,10 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Circle, Users, Plus, LogIn } from "lucide-react";
+import { ArrowLeft, Circle, Users, Plus, LogIn, Coins } from "lucide-react";
 import { useMultiplayer } from "@/hooks/useMultiplayer";
 import { toast } from "@/hooks/use-toast";
 
@@ -62,181 +61,167 @@ const BlackjackIndex = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-12">
-      {/* Back Button */}
+    <div className="relative min-h-screen bg-background overflow-hidden flex flex-col items-center justify-center px-4 py-12">
+      <div className="absolute inset-0 bg-casino-pattern" />
+      <div className="absolute inset-0 bg-diamond-pattern" />
+      <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 via-transparent to-transparent" />
+
       <Button
         variant="ghost"
-        className="absolute top-4 left-4 gap-2 text-muted-foreground hover:text-foreground"
+        className="absolute top-4 left-4 gap-2 text-muted-foreground hover:text-foreground z-20"
         onClick={() => navigate("/")}
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Hub
+        Back
       </Button>
 
-      {/* Hero Section */}
-      <div className="text-center space-y-4 mb-8 animate-fade-in">
-        <div className="flex justify-center">
-          <div className="p-4 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg">
-            <Circle className="w-12 h-12 text-white" />
+      <div className="relative z-10 flex flex-col items-center w-full max-w-md">
+        <div className="text-center space-y-4 mb-10 animate-fade-in">
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-2xl bg-emerald-500/20 blur-2xl" />
+              <div className="relative p-5 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-600/10 border border-emerald-500/20">
+                <Circle className="w-10 h-10 text-emerald-400" />
+              </div>
+            </div>
           </div>
+          
+          <h1 className="font-display text-5xl md:text-6xl tracking-wider">
+            <span className="bg-gradient-to-b from-emerald-300 via-emerald-400 to-green-600 bg-clip-text text-transparent">
+              BLACKJACK
+            </span>
+          </h1>
+          
+          <p className="text-muted-foreground max-w-sm mx-auto leading-relaxed font-light">
+            Beat the dealer to 21. Classic casino experience.
+          </p>
         </div>
-        
-        <h1 className="font-display text-5xl md:text-6xl bg-gradient-to-r from-emerald-500 to-green-600 bg-clip-text text-transparent tracking-wider">
-          BLACKJACK
-        </h1>
-        
-        <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-          Beat the dealer to 21. Classic casino experience with friends.
-        </p>
+
+        {mode === "menu" && (
+          <div className="flex flex-col gap-3 w-full animate-fade-in">
+            <div
+              className="group glass-card rounded-xl cursor-pointer transition-all duration-300 hover:border-emerald-500/30 game-card-glow"
+              style={{ '--glow-color': '152 60% 42%' } as React.CSSProperties}
+              onClick={() => setMode("create")}
+            >
+              <div className="flex items-center gap-4 p-5">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-400 to-green-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <Plus className="w-5 h-5 text-background" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-foreground">Create Table</h3>
+                  <p className="text-sm text-muted-foreground">Start a new blackjack table</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="group glass-card rounded-xl cursor-pointer transition-all duration-300 hover:border-emerald-500/30 game-card-glow"
+              style={{ '--glow-color': '152 60% 42%' } as React.CSSProperties}
+              onClick={() => setMode("join")}
+            >
+              <div className="flex items-center gap-4 p-5">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-400 to-green-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <LogIn className="w-5 h-5 text-background" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-foreground">Join Table</h3>
+                  <p className="text-sm text-muted-foreground">Enter a room code</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mode === "create" && (
+          <div className="w-full glass-card rounded-2xl border border-border/50 animate-fade-in">
+            <div className="p-6 border-b border-border/50">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-400" />
+                Create Blackjack Table
+              </h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-sm">Your Name</Label>
+                <Input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Enter your name" className="bg-muted/50 border-border/50" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-sm flex items-center gap-1.5"><Users className="w-3.5 h-3.5" />Players</Label>
+                  <Select value={maxPlayers} onValueChange={setMaxPlayers}>
+                    <SelectTrigger className="bg-muted/50 border-border/50"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2">2</SelectItem>
+                      <SelectItem value="4">4</SelectItem>
+                      <SelectItem value="6">6</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-sm flex items-center gap-1.5"><Coins className="w-3.5 h-3.5" />Chips</Label>
+                  <Select value={startingChips} onValueChange={setStartingChips}>
+                    <SelectTrigger className="bg-muted/50 border-border/50"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="500">$500</SelectItem>
+                      <SelectItem value="1000">$1,000</SelectItem>
+                      <SelectItem value="5000">$5,000</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-sm">Minimum Bet</Label>
+                <Select value={minBet} onValueChange={setMinBet}>
+                  <SelectTrigger className="bg-muted/50 border-border/50"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">$5</SelectItem>
+                    <SelectItem value="10">$10</SelectItem>
+                    <SelectItem value="25">$25</SelectItem>
+                    <SelectItem value="50">$50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" onClick={() => setMode("menu")} className="flex-1 border-border/50">Back</Button>
+                <Button onClick={handleCreateRoom} disabled={loading} className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-background font-semibold">
+                  {loading ? "Creating..." : "Create Table"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mode === "join" && (
+          <div className="w-full glass-card rounded-2xl border border-border/50 animate-fade-in">
+            <div className="p-6 border-b border-border/50">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <LogIn className="w-5 h-5 text-emerald-400" />
+                Join Blackjack Table
+              </h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-sm">Your Name</Label>
+                <Input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Enter your name" className="bg-muted/50 border-border/50" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-sm">Room Code</Label>
+                <Input value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())} placeholder="XXXXXX" maxLength={6} className="text-center text-2xl tracking-[0.3em] font-mono bg-muted/50 border-border/50 h-14" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" onClick={() => setMode("menu")} className="flex-1 border-border/50">Back</Button>
+                <Button onClick={handleJoinRoom} disabled={loading} className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-background font-semibold">
+                  {loading ? "Joining..." : "Join Table"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Game Options */}
-      {mode === "menu" && (
-        <div className="flex flex-col gap-4 w-full max-w-sm animate-fade-in">
-          <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMode("create")}>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="p-3 rounded-full bg-primary/20">
-                <Plus className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-medium">Create Table</h3>
-                <p className="text-sm text-muted-foreground">Start a new blackjack table</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setMode("join")}>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="p-3 rounded-full bg-primary/20">
-                <LogIn className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-medium">Join Table</h3>
-                <p className="text-sm text-muted-foreground">Enter a room code</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Create Game Form */}
-      {mode === "create" && (
-        <Card className="w-full max-w-md animate-fade-in">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Create Blackjack Table
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Your Name</Label>
-              <Input
-                id="name"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Enter your name"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="maxPlayers">Max Players</Label>
-              <Select value={maxPlayers} onValueChange={setMaxPlayers}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2">2 Players</SelectItem>
-                  <SelectItem value="4">4 Players</SelectItem>
-                  <SelectItem value="6">6 Players</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="chips">Starting Chips</Label>
-              <Select value={startingChips} onValueChange={setStartingChips}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="500">$500</SelectItem>
-                  <SelectItem value="1000">$1,000</SelectItem>
-                  <SelectItem value="5000">$5,000</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="minBet">Minimum Bet</Label>
-              <Select value={minBet} onValueChange={setMinBet}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">$5</SelectItem>
-                  <SelectItem value="10">$10</SelectItem>
-                  <SelectItem value="25">$25</SelectItem>
-                  <SelectItem value="50">$50</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button variant="outline" onClick={() => setMode("menu")} className="flex-1">
-                Back
-              </Button>
-              <Button onClick={handleCreateRoom} disabled={loading} className="flex-1">
-                {loading ? "Creating..." : "Create Table"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Join Game Form */}
-      {mode === "join" && (
-        <Card className="w-full max-w-md animate-fade-in">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <LogIn className="w-5 h-5" />
-              Join Blackjack Table
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="joinName">Your Name</Label>
-              <Input
-                id="joinName"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Enter your name"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="roomCode">Room Code</Label>
-              <Input
-                id="roomCode"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                placeholder="Enter 6-character code"
-                maxLength={6}
-                className="text-center text-2xl tracking-widest"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button variant="outline" onClick={() => setMode("menu")} className="flex-1">
-                Back
-              </Button>
-              <Button onClick={handleJoinRoom} disabled={loading} className="flex-1">
-                {loading ? "Joining..." : "Join Table"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
