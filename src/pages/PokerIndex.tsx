@@ -7,8 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Spade, Users, Plus, LogIn, Coins, Eye } from "lucide-react";
 import { useMultiplayer } from "@/hooks/useMultiplayer";
+import { usePlayerProfile } from "@/hooks/usePlayerProfile";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import AvatarPicker from "@/components/AvatarPicker";
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 const PokerIndex = () => {
   const navigate = useNavigate();
@@ -20,7 +23,8 @@ const PokerIndex = () => {
   const [mode, setMode] = useState<"menu" | "create" | "join">("menu");
   
   const { createRoom, joinRoom, loading, playerId } = useMultiplayer();
-
+  const { profile, ensureProfile, updateAvatar, uploadAvatar } = usePlayerProfile(playerId);
+  const [uploading, setUploading] = useState(false);
   useEffect(() => {
     const savedName = localStorage.getItem("playerName");
     if (savedName) setPlayerName(savedName);
@@ -33,7 +37,7 @@ const PokerIndex = () => {
     }
 
     localStorage.setItem("playerName", playerName);
-
+    await ensureProfile(playerName);
     const code = await createRoom(playerName);
     if (code) {
       const settings = {
@@ -72,6 +76,7 @@ const PokerIndex = () => {
     }
 
     localStorage.setItem("playerName", playerName);
+    await ensureProfile(playerName);
     const success = await joinRoom(roomCode, playerName);
     if (success) {
       navigate(`/poker/room/${roomCode.toUpperCase()}?name=${encodeURIComponent(playerName)}`);
