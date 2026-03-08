@@ -35,6 +35,7 @@ export const RummyTable = ({
   onDeclare,
   isSpectator = false,
   tableFelt,
+  cardBack,
 }: RummyTableProps) => {
   const { feltStyle, patternStyle } = useTableFelt(tableFelt);
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
