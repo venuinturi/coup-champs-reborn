@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { getCardBack } from "@/lib/cardBacks";
 
 interface PlayingCardProps {
   suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
@@ -12,6 +13,7 @@ interface PlayingCardProps {
   isJoker?: boolean;
   animated?: boolean;
   dealDelay?: number;
+  cardBack?: string;
 }
 
 const suitSymbols = {
@@ -45,6 +47,7 @@ export const PlayingCard = ({
   isJoker = false,
   animated = false,
   dealDelay = 0,
+  cardBack: cardBackId,
 }: PlayingCardProps) => {
   const [dealt, setDealt] = useState(!animated);
   const sizeClass = sizeClasses[size];
@@ -87,20 +90,32 @@ export const PlayingCard = ({
   }
 
   if (!faceUp) {
+    const back = getCardBack(cardBackId ?? 'classic');
     return (
       <div
         className={cn(
-          "relative rounded-lg shadow-lg border-2 border-primary/30 flex items-center justify-center cursor-pointer transition-all duration-200",
+          "relative rounded-lg shadow-lg border-2 flex items-center justify-center cursor-pointer transition-all duration-200 overflow-hidden",
           sizeClass,
-          "bg-gradient-to-br from-primary/20 to-primary/10",
           animClass,
           className
         )}
         onClick={onClick}
-        style={animStyle}
+        style={{
+          ...animStyle,
+          background: back.background,
+          borderColor: `${back.swatch}60`,
+        }}
       >
-        <div className="w-3/4 h-3/4 rounded border border-primary/40 bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
-          <span className="text-primary/60 text-lg">♠</span>
+        {back.pattern && (
+          <div
+            className="absolute inset-0"
+            style={{ backgroundImage: back.pattern, backgroundRepeat: 'repeat' }}
+          />
+        )}
+        <div className="relative w-3/4 h-3/4 rounded border flex items-center justify-center"
+          style={{ borderColor: 'rgba(255,255,255,0.15)' }}
+        >
+          <span className="text-lg" style={{ color: back.symbolColor }}>{back.symbol}</span>
         </div>
       </div>
     );
