@@ -6,6 +6,7 @@ export interface PlayerProfile {
   player_name: string;
   avatar_url: string | null;
   avatar_preset: string;
+  theme_preference: 'light' | 'dark';
 }
 
 // Preset avatar configurations - emoji-based for simplicity
@@ -111,6 +112,21 @@ export const usePlayerProfile = (playerId: string | null) => {
     }
   }, [playerId]);
 
+  const updateTheme = useCallback(async (theme: 'light' | 'dark') => {
+    if (!playerId) return;
+
+    const { data, error } = await supabase
+      .from('player_profiles')
+      .update({ theme_preference: theme })
+      .eq('player_id', playerId)
+      .select()
+      .single();
+
+    if (data) {
+      setProfile(data as PlayerProfile);
+    }
+  }, [playerId]);
+
   const uploadAvatar = useCallback(async (file: File) => {
     if (!playerId) return null;
 
@@ -136,7 +152,7 @@ export const usePlayerProfile = (playerId: string | null) => {
     return url;
   }, [playerId, updateAvatar]);
 
-  return { profile, loading, ensureProfile, updateAvatar, uploadAvatar };
+  return { profile, loading, ensureProfile, updateAvatar, uploadAvatar, updateTheme };
 };
 
 // Hook to fetch multiple profiles at once (for rooms/games)

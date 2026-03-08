@@ -91,6 +91,7 @@ export type Database = {
           id: string
           player_id: string
           player_name: string
+          theme_preference: string
           updated_at: string
         }
         Insert: {
@@ -100,6 +101,7 @@ export type Database = {
           id?: string
           player_id: string
           player_name?: string
+          theme_preference?: string
           updated_at?: string
         }
         Update: {
@@ -109,6 +111,7 @@ export type Database = {
           id?: string
           player_id?: string
           player_name?: string
+          theme_preference?: string
           updated_at?: string
         }
         Relationships: []

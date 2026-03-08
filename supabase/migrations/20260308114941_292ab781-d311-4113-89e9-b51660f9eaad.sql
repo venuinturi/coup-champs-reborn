@@ -1,0 +1,1 @@
+ALTER TABLE public.player_profiles ADD COLUMN theme_preference text NOT NULL DEFAULT 'dark';
