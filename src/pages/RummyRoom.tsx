@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Copy, Check, Crown, Users } from "lucide-react";
+import { ArrowLeft, Copy, Check, Crown, Users, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
@@ -17,6 +17,7 @@ interface RoomPlayer {
   player_name: string;
   is_host: boolean;
   is_ready: boolean;
+  is_spectator: boolean;
 }
 
 interface GameRoom {
@@ -41,7 +42,10 @@ const RummyRoom = () => {
 
   const isHost = room?.host_id === playerId;
   const currentPlayer = players.find(p => p.player_id === playerId);
-  const allReady = players.length >= 2 && players.every(p => p.is_ready);
+  const activePlayers = players.filter(p => !p.is_spectator);
+  const spectators = players.filter(p => p.is_spectator);
+  const allReady = activePlayers.length >= 2 && activePlayers.every(p => p.is_ready);
+  const isSpectator = currentPlayer?.is_spectator || false;
   const playerIds = useMemo(() => players.map(p => p.player_id), [players]);
   const profiles = usePlayersProfiles(playerIds);
 
@@ -85,7 +89,8 @@ const RummyRoom = () => {
           });
           
           if (newRoom.status === 'playing') {
-            navigate(`/rummy/game/${roomCode}?name=${encodeURIComponent(playerName)}`);
+            const spectatorParam = isSpectator ? '&spectator=true' : '';
+            navigate(`/rummy/game/${roomCode}?name=${encodeURIComponent(playerName)}${spectatorParam}`);
           }
         }
       })
@@ -114,9 +119,10 @@ const RummyRoom = () => {
 
   useEffect(() => {
     if (room?.status === 'playing') {
-      navigate(`/rummy/game/${roomCode}?name=${encodeURIComponent(playerName)}`);
+      const spectatorParam = isSpectator ? '&spectator=true' : '';
+      navigate(`/rummy/game/${roomCode}?name=${encodeURIComponent(playerName)}${spectatorParam}`);
     }
-  }, [room?.status, roomCode, navigate, playerName]);
+  }, [room?.status, roomCode, navigate, playerName, isSpectator]);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(roomCode || "");
@@ -138,7 +144,7 @@ const RummyRoom = () => {
     setLoading(true);
 
     try {
-      const playerData = players.map(p => ({ id: p.player_id, name: p.player_name }));
+      const playerData = activePlayers.map(p => ({ id: p.player_id, name: p.player_name }));
       const gameState = createRummyGame(playerData);
 
       await supabase
@@ -207,10 +213,10 @@ const RummyRoom = () => {
       <div className="w-full max-w-md space-y-3 mb-8">
         <div className="flex items-center gap-2 text-muted-foreground mb-4">
           <Users className="w-4 h-4" />
-          <span>Players ({players.length})</span>
+          <span>Players ({activePlayers.length})</span>
         </div>
 
-        {players.map((player) => (
+        {activePlayers.map((player) => (
           <div
             key={player.id}
             className={cn(
@@ -244,17 +250,48 @@ const RummyRoom = () => {
             </span>
           </div>
         ))}
+
+        {/* Spectators */}
+        {spectators.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-border/50">
+            <div className="flex items-center gap-2 text-muted-foreground mb-3">
+              <Eye className="w-4 h-4" />
+              <span className="text-sm">Spectators ({spectators.length})</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {spectators.map((spec) => (
+                <div key={spec.id} className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-full text-sm">
+                  <PlayerAvatar
+                    preset={profiles.get(spec.player_id)?.avatar_preset}
+                    customUrl={profiles.get(spec.player_id)?.avatar_url}
+                    size="sm"
+                  />
+                  <span className="text-muted-foreground">{spec.player_name}</span>
+                  {spec.player_id === playerId && <span className="text-xs text-primary">(You)</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-4">
-        {isHost ? (
+        {isSpectator ? (
+          <div className="text-center">
+            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+              <Eye className="w-5 h-5" />
+              <span>You're watching as a spectator</span>
+            </div>
+            <p className="text-sm text-muted-foreground">Waiting for the game to start...</p>
+          </div>
+        ) : isHost ? (
           <Button
             size="lg"
             onClick={handleStartGame}
             disabled={!allReady || loading}
             className="bg-gradient-to-r from-purple-500 to-violet-600"
           >
-            {loading ? "Starting..." : players.length < 2 ? "Need 2+ Players" : !allReady ? "Waiting for Ready..." : "Start Game"}
+            {loading ? "Starting..." : activePlayers.length < 2 ? "Need 2+ Players" : !allReady ? "Waiting for Ready..." : "Start Game"}
           </Button>
         ) : (
           <Button
