@@ -18,9 +18,10 @@ interface PokerTableProps {
   onAction: (action: PokerAction, amount?: number) => void;
   isSpectator?: boolean;
   tableFelt?: string;
+  cardBack?: string;
 }
 
-export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = false, tableFelt }: PokerTableProps) => {
+export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = false, tableFelt, cardBack }: PokerTableProps) => {
   const { felt, feltStyle, patternStyle } = useTableFelt(tableFelt);
   const [raiseAmount, setRaiseAmount] = useState<number>(gameState.bigBlind * 2);
   const prevPhaseRef = useRef(gameState.phase);
