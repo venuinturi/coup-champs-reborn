@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { usePlayerProfile } from "@/hooks/usePlayerProfile";
 import { useAccentColor } from "@/hooks/useAccentColor";
+import { useAccessibilitySettings } from "@/hooks/useAccessibilitySettings";
+import type { FontSize } from "@/hooks/useAccessibilitySettings";
 
 export const ThemeToggle = () => {
   const { theme, setTheme } = useTheme();
@@ -12,8 +14,12 @@ export const ThemeToggle = () => {
   const { playerId } = usePlayerAuth();
   const { profile, updateTheme } = usePlayerProfile(playerId);
 
-  // Apply accent color from profile
+  // Apply accent color and accessibility settings from profile
   useAccentColor(profile?.accent_color ?? null);
+  useAccessibilitySettings(
+    (profile?.font_size as FontSize) ?? null,
+    profile?.reduced_motion ?? null
+  );
 
   useEffect(() => {
     setMounted(true);
