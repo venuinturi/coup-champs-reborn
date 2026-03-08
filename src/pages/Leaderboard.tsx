@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Trophy, Medal, Crown, Coins, Target, TrendingUp, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGameHistory, LeaderboardEntry, GameType } from "@/hooks/useGameHistory";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
+import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { cn } from "@/lib/utils";
 
 const gameFilters: { label: string; value: GameType | 'all' }[] = [
@@ -39,6 +41,9 @@ const Leaderboard = () => {
     };
     load();
   }, [selectedGame, fetchLeaderboard]);
+
+  const leaderboardPlayerIds = useMemo(() => leaderboard.map(e => e.player_id), [leaderboard]);
+  const profiles = usePlayersProfiles(leaderboardPlayerIds);
 
   useEffect(() => {
     if (playerId) {
@@ -171,13 +176,20 @@ const Leaderboard = () => {
                 <div className="col-span-1 flex items-center">
                   {getRankIcon(index)}
                 </div>
-                <div className="col-span-4">
-                  <span className="font-medium text-foreground truncate block">
-                    {entry.player_name}
-                  </span>
-                  {entry.player_id === playerId && (
-                    <span className="text-[10px] text-primary/70 uppercase tracking-wider">You</span>
-                  )}
+                <div className="col-span-4 flex items-center gap-2">
+                  <PlayerAvatar
+                    preset={profiles.get(entry.player_id)?.avatar_preset}
+                    customUrl={profiles.get(entry.player_id)?.avatar_url}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <span className="font-medium text-foreground truncate block">
+                      {entry.player_name}
+                    </span>
+                    {entry.player_id === playerId && (
+                      <span className="text-[10px] text-primary/70 uppercase tracking-wider">You</span>
+                    )}
+                  </div>
                 </div>
                 <div className="col-span-2 text-center font-semibold text-foreground">
                   {entry.total_wins}

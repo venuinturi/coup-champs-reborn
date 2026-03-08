@@ -83,6 +83,36 @@ export type Database = {
         }
         Relationships: []
       }
+      player_profiles: {
+        Row: {
+          avatar_preset: string | null
+          avatar_url: string | null
+          created_at: string
+          id: string
+          player_id: string
+          player_name: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_preset?: string | null
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          player_id: string
+          player_name?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_preset?: string | null
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          player_id?: string
+          player_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       room_messages: {
         Row: {
           created_at: string

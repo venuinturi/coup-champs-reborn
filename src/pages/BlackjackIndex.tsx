@@ -6,7 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Circle, Users, Plus, LogIn, Coins } from "lucide-react";
 import { useMultiplayer } from "@/hooks/useMultiplayer";
+import { usePlayerProfile } from "@/hooks/usePlayerProfile";
 import { toast } from "@/hooks/use-toast";
+import AvatarPicker from "@/components/AvatarPicker";
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 const BlackjackIndex = () => {
   const navigate = useNavigate();
@@ -17,7 +20,9 @@ const BlackjackIndex = () => {
   const [minBet, setMinBet] = useState("10");
   const [mode, setMode] = useState<"menu" | "create" | "join">("menu");
   
-  const { createRoom, joinRoom, loading } = useMultiplayer();
+  const { createRoom, joinRoom, loading, playerId } = useMultiplayer();
+  const { profile, ensureProfile, updateAvatar, uploadAvatar } = usePlayerProfile(playerId);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const savedName = localStorage.getItem("playerName");
@@ -31,6 +36,7 @@ const BlackjackIndex = () => {
     }
 
     localStorage.setItem("playerName", playerName);
+    await ensureProfile(playerName);
     localStorage.setItem("blackjackSettings", JSON.stringify({
       maxPlayers: parseInt(maxPlayers),
       startingChips: parseInt(startingChips),
@@ -54,6 +60,7 @@ const BlackjackIndex = () => {
     }
 
     localStorage.setItem("playerName", playerName);
+    await ensureProfile(playerName);
     const success = await joinRoom(roomCode, playerName);
     if (success) {
       navigate(`/blackjack/room/${roomCode.toUpperCase()}?name=${encodeURIComponent(playerName)}`);
@@ -142,10 +149,20 @@ const BlackjackIndex = () => {
               </h2>
             </div>
             <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-sm">Your Name</Label>
-                <Input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Enter your name" className="bg-muted/50 border-border/50" />
+              <div className="flex items-center gap-4">
+                <PlayerAvatar preset={profile?.avatar_preset || 'default'} customUrl={profile?.avatar_url} size="lg" />
+                <div className="flex-1 space-y-2">
+                  <Label className="text-muted-foreground text-sm">Your Name</Label>
+                  <Input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Enter your name" className="bg-muted/50 border-border/50" />
+                </div>
               </div>
+              <AvatarPicker
+                currentPreset={profile?.avatar_preset || 'default'}
+                currentUrl={profile?.avatar_url}
+                onSelectPreset={(preset) => updateAvatar(preset)}
+                onUpload={async (file) => { setUploading(true); await uploadAvatar(file); setUploading(false); }}
+                uploading={uploading}
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

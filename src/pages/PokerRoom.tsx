@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Copy, Check, Crown, Users, Coins, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
+import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
 import { toast } from "@/hooks/use-toast";
 import { PokerGameState } from "@/lib/poker/pokerTypes";
 import { createPokerGame, startHand } from "@/lib/poker/pokerEngine";
 import { cn } from "@/lib/utils";
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 interface RoomPlayer {
   id: string;
@@ -42,6 +44,9 @@ const PokerRoom = () => {
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const playerIds = useMemo(() => players.map(p => p.player_id), [players]);
+  const profiles = usePlayersProfiles(playerIds);
 
   const isHost = room?.host_id === playerId;
   const currentPlayer = players.find(p => p.player_id === playerId);
@@ -259,11 +264,22 @@ const PokerRoom = () => {
             )}
           >
             <div className="flex items-center gap-3">
-              {player.is_host && <Crown className="w-5 h-5 text-primary" />}
-              <span className="font-medium">{player.player_name}</span>
-              {player.player_id === playerId && (
-                <span className="text-xs text-muted-foreground">(You)</span>
-              )}
+              <PlayerAvatar
+                preset={profiles.get(player.player_id)?.avatar_preset}
+                customUrl={profiles.get(player.player_id)?.avatar_url}
+                size="md"
+                showRing={player.is_ready}
+                ringColor="ring-green-500"
+              />
+              <div>
+                <span className="font-medium flex items-center gap-1.5">
+                  {player.is_host && <Crown className="w-4 h-4 text-primary" />}
+                  {player.player_name}
+                </span>
+                {player.player_id === playerId && (
+                  <span className="text-xs text-muted-foreground">You</span>
+                )}
+              </div>
             </div>
             <span className={cn(
               "text-sm font-medium",
