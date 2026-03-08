@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { GameChat } from "@/components/game/GameChat";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { BlackjackGameState, BlackjackAction } from "@/lib/blackjack/blackjackTypes";
@@ -9,7 +10,9 @@ import { Button } from "@/components/ui/button";
 
 const BlackjackGame = () => {
   const { roomCode } = useParams<{ roomCode: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const playerName = searchParams.get("name") || "Player";
   const { playerId } = usePlayerAuth();
   const [gameState, setGameState] = useState<BlackjackGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -58,17 +61,20 @@ const BlackjackGame = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <Button variant="ghost" className="mb-4" onClick={() => navigate('/blackjack')}>← Leave Game</Button>
-      <BlackjackTable
-        gameState={gameState}
-        localPlayerId={playerId}
-        onAction={handleAction}
-        onPlaceBet={handlePlaceBet}
-        onStartRound={() => updateGameState(startDealing(gameState))}
-        onNewRound={() => updateGameState(startNewRound(gameState))}
-      />
-    </div>
+    <>
+      <div className="min-h-screen bg-background p-4">
+        <Button variant="ghost" className="mb-4" onClick={() => navigate('/blackjack')}>← Leave Game</Button>
+        <BlackjackTable
+          gameState={gameState}
+          localPlayerId={playerId}
+          onAction={handleAction}
+          onPlaceBet={handlePlaceBet}
+          onStartRound={() => updateGameState(startDealing(gameState))}
+          onNewRound={() => updateGameState(startNewRound(gameState))}
+        />
+      </div>
+      {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}
+    </>
   );
 };
 

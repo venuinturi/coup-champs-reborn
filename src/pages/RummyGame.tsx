@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { GameChat } from "@/components/game/GameChat";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { RummyGameState, Meld } from "@/lib/rummy/rummyTypes";
@@ -9,7 +10,9 @@ import { Button } from "@/components/ui/button";
 
 const RummyGame = () => {
   const { roomCode } = useParams<{ roomCode: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const playerName = searchParams.get("name") || "Player";
   const { playerId } = usePlayerAuth();
   const [gameState, setGameState] = useState<RummyGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -48,18 +51,21 @@ const RummyGame = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <Button variant="ghost" className="mb-4" onClick={() => navigate('/rummy')}>← Leave Game</Button>
-      <RummyTable
-        gameState={gameState}
-        localPlayerId={playerId}
-        onDrawDeck={() => updateGameState(drawFromDeck(gameState, playerId))}
-        onDrawDiscard={() => updateGameState(drawFromDiscard(gameState, playerId))}
-        onDiscard={(i) => updateGameState(discardCard(gameState, playerId, i))}
-        onDrop={() => updateGameState(dropFromGame(gameState, playerId))}
-        onDeclare={(melds: Meld[]) => updateGameState(declareGame(gameState, playerId, melds))}
-      />
-    </div>
+    <>
+      <div className="min-h-screen bg-background p-4">
+        <Button variant="ghost" className="mb-4" onClick={() => navigate('/rummy')}>← Leave Game</Button>
+        <RummyTable
+          gameState={gameState}
+          localPlayerId={playerId}
+          onDrawDeck={() => updateGameState(drawFromDeck(gameState, playerId))}
+          onDrawDiscard={() => updateGameState(drawFromDiscard(gameState, playerId))}
+          onDiscard={(i) => updateGameState(discardCard(gameState, playerId, i))}
+          onDrop={() => updateGameState(dropFromGame(gameState, playerId))}
+          onDeclare={(melds: Meld[]) => updateGameState(declareGame(gameState, playerId, melds))}
+        />
+      </div>
+      {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}
+    </>
   );
 };
 
