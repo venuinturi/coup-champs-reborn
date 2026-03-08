@@ -8,7 +8,7 @@ import AvatarPicker from "@/components/AvatarPicker";
 import AccentColorPicker from "@/components/AccentColorPicker";
 import AccessibilitySettings from "@/components/AccessibilitySettings";
 import TableFeltPicker from "@/components/TableFeltPicker";
-import type { FontSize } from "@/hooks/useAccessibilitySettings";
+import CardBackPicker from "@/components/CardBackPicker";
 import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +94,7 @@ const Section = ({
 const Profile = () => {
   const navigate = useNavigate();
   const { playerId, loading: authLoading } = usePlayerAuth();
-  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar, updateAccentColor, updateFontSize, updateReducedMotion, updateTableFelt } = usePlayerProfile(playerId);
+  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar, updateAccentColor, updateFontSize, updateReducedMotion, updateTableFelt, updateCardBack } = usePlayerProfile(playerId);
   const { fetchPlayerStats } = useGameHistory();
 
   const [stats, setStats] = useState<{
@@ -167,6 +167,11 @@ const Profile = () => {
 
   const handleTableFeltChange = async (feltId: string) => {
     await updateTableFelt(feltId);
+    sounds.buttonClick();
+  };
+
+  const handleCardBackChange = async (backId: string) => {
+    await updateCardBack(backId);
     sounds.buttonClick();
   };
 
