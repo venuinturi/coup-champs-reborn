@@ -102,10 +102,8 @@ const BlackjackGame = () => {
       </div>
       {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}
     </>
-      </div>
-      {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}
-    </>
   );
 };
 
+export default BlackjackGame;
 export default BlackjackGame;
