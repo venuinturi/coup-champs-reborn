@@ -4,6 +4,7 @@ import { GameChat } from "@/components/game/GameChat";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { useGameHistory } from "@/hooks/useGameHistory";
+import { usePlayerProfile } from "@/hooks/usePlayerProfile";
 import { RummyGameState, Meld } from "@/lib/rummy/rummyTypes";
 import { drawFromDeck, drawFromDiscard, discardCard, dropFromGame, declareGame } from "@/lib/rummy/rummyEngine";
 import RummyTable from "@/components/rummy/RummyTable";

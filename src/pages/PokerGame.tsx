@@ -4,6 +4,7 @@ import { GameChat } from "@/components/game/GameChat";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { useGameHistory } from "@/hooks/useGameHistory";
+import { usePlayerProfile } from "@/hooks/usePlayerProfile";
 import { PokerGameState, PokerAction } from "@/lib/poker/pokerTypes";
 import { processAction, nextHand } from "@/lib/poker/pokerEngine";
 import PokerTable from "@/components/poker/PokerTable";
