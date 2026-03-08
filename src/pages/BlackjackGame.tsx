@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { GameChat } from "@/components/game/GameChat";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
+import { useGameHistory } from "@/hooks/useGameHistory";
 import { BlackjackGameState, BlackjackAction } from "@/lib/blackjack/blackjackTypes";
 import { placeBet, startDealing, playerAction, startNewRound } from "@/lib/blackjack/blackjackEngine";
 import BlackjackTable from "@/components/blackjack/BlackjackTable";
@@ -16,6 +17,8 @@ const BlackjackGame = () => {
   const { playerId } = usePlayerAuth();
   const [gameState, setGameState] = useState<BlackjackGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
+  const { recordGame } = useGameHistory();
+  const recordedRef = useRef(false);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -55,6 +58,23 @@ const BlackjackGame = () => {
     if (!gameState || !playerId) return;
     updateGameState(placeBet(gameState, playerId, amount));
   };
+
+  // Record game result when round ends
+  useEffect(() => {
+    if (gameState?.phase === 'results' && playerId && !recordedRef.current) {
+      recordedRef.current = true;
+      const player = gameState.players.find(p => p.id === playerId);
+      if (player?.result) {
+        const isWin = player.result === 'win' || player.result === 'blackjack';
+        const isDraw = player.result === 'push';
+        recordGame(playerId, playerName, 'blackjack', isWin ? 'win' : isDraw ? 'draw' : 'loss', roomCode, isWin ? player.currentBet * 2 : 0);
+      }
+    }
+  }, [gameState?.phase, playerId]);
+
+  useEffect(() => {
+    if (gameState?.phase === 'betting') recordedRef.current = false;
+  }, [gameState?.phase]);
 
   if (!gameState || !playerId) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
