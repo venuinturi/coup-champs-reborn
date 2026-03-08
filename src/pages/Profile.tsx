@@ -314,6 +314,13 @@ const Profile = () => {
             />
           </Section>
 
+          <Section icon={Layers} title="Table Felt" defaultOpen={false} accentHex={currentAccentHex}>
+            <TableFeltPicker
+              currentFelt={profile?.table_felt || 'classic-green'}
+              onSelectFelt={handleTableFeltChange}
+            />
+          </Section>
+
           <Section icon={Settings2} title="Accessibility" defaultOpen={false} accentHex={currentAccentHex}>
             <AccessibilitySettings
               fontSize={(profile?.font_size as FontSize) || 'medium'}
