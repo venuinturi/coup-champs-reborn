@@ -20,6 +20,7 @@ const RummyGame = () => {
   const [gameState, setGameState] = useState<RummyGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const { recordGame } = useGameHistory();
+  const { profile } = usePlayerProfile(playerId);
   const recordedRef = useRef(false);
 
   useEffect(() => {
@@ -82,6 +83,7 @@ const RummyGame = () => {
           onDrop={isSpectator ? () => {} : () => updateGameState(dropFromGame(gameState, playerId))}
           onDeclare={isSpectator ? () => {} : (melds: Meld[]) => updateGameState(declareGame(gameState, playerId, melds))}
           isSpectator={isSpectator}
+          tableFelt={profile?.table_felt}
         />
       </div>
       {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}

@@ -20,6 +20,7 @@ const BlackjackGame = () => {
   const [gameState, setGameState] = useState<BlackjackGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const { recordGame } = useGameHistory();
+  const { profile } = usePlayerProfile(playerId);
   const recordedRef = useRef(false);
 
   useEffect(() => {
@@ -99,6 +100,7 @@ const BlackjackGame = () => {
           onStartRound={isSpectator ? () => {} : () => updateGameState(startDealing(gameState))}
           onNewRound={isSpectator ? () => {} : () => updateGameState(startNewRound(gameState))}
           isSpectator={isSpectator}
+          tableFelt={profile?.table_felt}
         />
       </div>
       {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}

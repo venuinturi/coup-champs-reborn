@@ -20,6 +20,7 @@ const PokerGame = () => {
   const [gameState, setGameState] = useState<PokerGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const { recordGame } = useGameHistory();
+  const { profile } = usePlayerProfile(playerId);
   const recordedRef = useRef(false);
 
   useEffect(() => {
@@ -98,6 +99,7 @@ const PokerGame = () => {
           localPlayerId={playerId} 
           onAction={isSpectator ? () => {} : handleAction} 
           isSpectator={isSpectator}
+          tableFelt={profile?.table_felt}
         />
         {gameState.phase === 'finished' && !isSpectator && (
           <div className="text-center mt-4">
