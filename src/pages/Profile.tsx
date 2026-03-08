@@ -19,7 +19,7 @@ import {
   ArrowLeft, Trophy, Target, Coins, TrendingUp,
   Gamepad2, Calendar, Crown, Pencil, Check, X,
   Spade, Circle, Layers, Palette, Settings2,
-  ChevronDown, User, Brush,
+  ChevronDown, User, Brush, RectangleVertical,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -327,7 +327,13 @@ const Profile = () => {
             />
           </Section>
 
-          <Section icon={Settings2} title="Accessibility" defaultOpen={false} accentHex={currentAccentHex}>
+          <Section icon={RectangleVertical} title="Card Back" defaultOpen={false} accentHex={currentAccentHex}>
+            <CardBackPicker
+              currentBack={(profile as any)?.card_back || 'classic'}
+              onSelectBack={handleCardBackChange}
+            />
+          </Section>
+
             <AccessibilitySettings
               fontSize={(profile?.font_size as FontSize) || 'medium'}
               reducedMotion={profile?.reduced_motion ?? false}
