@@ -98,6 +98,7 @@ export const RummyTable = ({
 
     setMelds([...melds, newMeld]);
     setSelectedCards([]);
+    sounds.meldCreate();
     
     toast({ title: "Meld Created", description: `${result.type} (${result.isPure ? 'pure' : 'with joker'})` });
   };
