@@ -9,6 +9,7 @@ import AccentColorPicker from "@/components/AccentColorPicker";
 import AccessibilitySettings from "@/components/AccessibilitySettings";
 import TableFeltPicker from "@/components/TableFeltPicker";
 import CardBackPicker from "@/components/CardBackPicker";
+import type { FontSize } from "@/hooks/useAccessibilitySettings";
 import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
