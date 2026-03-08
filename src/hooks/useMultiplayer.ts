@@ -11,6 +11,7 @@ export interface RoomPlayer {
   player_name: string;
   is_host: boolean;
   is_ready: boolean;
+  is_spectator: boolean;
   joined_at: string;
 }
 
