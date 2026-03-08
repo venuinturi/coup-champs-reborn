@@ -3,8 +3,10 @@ import { getAvailableActions } from "@/lib/poker/pokerEngine";
 import PlayingCard from "@/components/cards/PlayingCard";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import PokerChip from "@/components/PokerChip";
+import ChipToss from "@/components/game/ChipToss";
 import Confetti from "@/components/Confetti";
 import SoundToggle from "@/components/SoundToggle";
+import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -192,12 +194,15 @@ export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = f
               {player.isDealer && <span className="text-xs bg-primary text-primary-foreground px-1 rounded animate-bounce-in">D</span>}
             </div>
             <div className="text-xs text-muted-foreground">${player.chips}</div>
-            {player.currentBet > 0 && (
-              <div className="text-xs text-primary animate-slide-up flex items-center justify-center gap-1">
-                <PokerChip chipStyle={chipStyle || profiles.get(player.id)?.chip_style} size="sm" />
-                ${player.currentBet}
-              </div>
-            )}
+            <AnimatePresence>
+              {player.currentBet > 0 && (
+                <ChipToss
+                  key={`${player.id}-bet-${player.currentBet}`}
+                  chipStyle={chipStyle || profiles.get(player.id)?.chip_style}
+                  amount={player.currentBet}
+                />
+              )}
+            </AnimatePresence>
             {player.folded && (
               <div className="text-xs text-destructive animate-fade-in">Folded</div>
             )}
