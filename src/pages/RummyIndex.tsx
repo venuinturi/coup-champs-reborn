@@ -6,7 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Layers, Users, Plus, LogIn } from "lucide-react";
 import { useMultiplayer } from "@/hooks/useMultiplayer";
+import { usePlayerProfile } from "@/hooks/usePlayerProfile";
 import { toast } from "@/hooks/use-toast";
+import AvatarPicker from "@/components/AvatarPicker";
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 const RummyIndex = () => {
   const navigate = useNavigate();
@@ -15,7 +18,9 @@ const RummyIndex = () => {
   const [maxPlayers, setMaxPlayers] = useState("4");
   const [mode, setMode] = useState<"menu" | "create" | "join">("menu");
   
-  const { createRoom, joinRoom, loading } = useMultiplayer();
+  const { createRoom, joinRoom, loading, playerId } = useMultiplayer();
+  const { profile, ensureProfile, updateAvatar, uploadAvatar } = usePlayerProfile(playerId);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const savedName = localStorage.getItem("playerName");
@@ -29,6 +34,7 @@ const RummyIndex = () => {
     }
 
     localStorage.setItem("playerName", playerName);
+    await ensureProfile(playerName);
     localStorage.setItem("rummySettings", JSON.stringify({ maxPlayers: parseInt(maxPlayers) }));
 
     const code = await createRoom(playerName);
@@ -48,6 +54,7 @@ const RummyIndex = () => {
     }
 
     localStorage.setItem("playerName", playerName);
+    await ensureProfile(playerName);
     const success = await joinRoom(roomCode, playerName);
     if (success) {
       navigate(`/rummy/room/${roomCode.toUpperCase()}?name=${encodeURIComponent(playerName)}`);
