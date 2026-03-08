@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye } from "lucide-react";
 
 export const LobbyCard = () => {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ export const LobbyCard = () => {
     }
   };
 
-  const handleJoinRoom = async () => {
+  const handleJoinRoom = async (asSpectator: boolean = false) => {
     if (!playerName.trim()) {
       toast({
         title: "Name Required",
@@ -67,9 +67,10 @@ export const LobbyCard = () => {
       return;
     }
     
-    const success = await joinRoom(roomCode, playerName);
+    const success = await joinRoom(roomCode, playerName, asSpectator);
     if (success) {
-      navigate(`/room/${roomCode.toUpperCase()}?name=${encodeURIComponent(playerName)}`);
+      const spectatorParam = asSpectator ? '&spectator=true' : '';
+      navigate(`/room/${roomCode.toUpperCase()}?name=${encodeURIComponent(playerName)}${spectatorParam}`);
     }
   };
 
@@ -191,12 +192,22 @@ export const LobbyCard = () => {
                 />
                 <Button 
                   variant="gold-outline" 
-                  onClick={handleJoinRoom}
+                  onClick={() => handleJoinRoom(false)}
                   disabled={loading}
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Join'}
                 </Button>
               </div>
+
+              <Button
+                variant="ghost"
+                className="w-full text-muted-foreground gap-2"
+                onClick={() => handleJoinRoom(true)}
+                disabled={loading || !roomCode.trim()}
+              >
+                <Eye className="w-4 h-4" />
+                Watch as Spectator
+              </Button>
 
               <Button
                 variant="ghost"
