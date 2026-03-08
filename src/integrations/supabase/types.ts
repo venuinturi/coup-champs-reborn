@@ -153,6 +153,7 @@ export type Database = {
           id: string
           is_host: boolean
           is_ready: boolean
+          is_spectator: boolean
           joined_at: string
           player_id: string
           player_name: string
@@ -162,6 +163,7 @@ export type Database = {
           id?: string
           is_host?: boolean
           is_ready?: boolean
+          is_spectator?: boolean
           joined_at?: string
           player_id: string
           player_name: string
@@ -171,6 +173,7 @@ export type Database = {
           id?: string
           is_host?: boolean
           is_ready?: boolean
+          is_spectator?: boolean
           joined_at?: string
           player_id?: string
           player_name?: string
