@@ -6,6 +6,8 @@ import { useGameHistory, GameHistoryEntry } from "@/hooks/useGameHistory";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import AvatarPicker from "@/components/AvatarPicker";
 import AccentColorPicker from "@/components/AccentColorPicker";
+import AccessibilitySettings from "@/components/AccessibilitySettings";
+import type { FontSize } from "@/hooks/useAccessibilitySettings";
 import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +16,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Trophy, Target, Coins, TrendingUp,
   Gamepad2, Calendar, Crown, Pencil, Check, X,
-  Spade, Circle, Layers, Palette,
+  Spade, Circle, Layers, Palette, Settings2,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -41,7 +43,7 @@ const resultColors: Record<string, string> = {
 const Profile = () => {
   const navigate = useNavigate();
   const { playerId, loading: authLoading } = usePlayerAuth();
-  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar, updateAccentColor } = usePlayerProfile(playerId);
+  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar, updateAccentColor, updateFontSize, updateReducedMotion } = usePlayerProfile(playerId);
   const { fetchPlayerStats } = useGameHistory();
 
   const [stats, setStats] = useState<{
@@ -101,6 +103,16 @@ const Profile = () => {
 
   const handleSelectAccent = async (accentHsl: string | null) => {
     await updateAccentColor(accentHsl);
+    sounds.buttonClick();
+  };
+
+  const handleFontSizeChange = async (size: FontSize) => {
+    await updateFontSize(size);
+    sounds.buttonClick();
+  };
+
+  const handleReducedMotionChange = async (enabled: boolean) => {
+    await updateReducedMotion(enabled);
     sounds.buttonClick();
   };
 
@@ -213,6 +225,20 @@ const Profile = () => {
             <AccentColorPicker
               currentAccent={profile?.accent_color ?? null}
               onSelectAccent={handleSelectAccent}
+            />
+          </div>
+
+          {/* Accessibility Settings */}
+          <div className="mt-6 pt-6 border-t border-border/50">
+            <div className="flex items-center gap-2 mb-3">
+              <Settings2 className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-muted-foreground">Accessibility</span>
+            </div>
+            <AccessibilitySettings
+              fontSize={(profile?.font_size as FontSize) || 'medium'}
+              reducedMotion={profile?.reduced_motion ?? false}
+              onFontSizeChange={handleFontSizeChange}
+              onReducedMotionChange={handleReducedMotionChange}
             />
           </div>
         </div>

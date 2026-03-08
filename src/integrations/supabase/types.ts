@@ -89,9 +89,11 @@ export type Database = {
           avatar_preset: string | null
           avatar_url: string | null
           created_at: string
+          font_size: string
           id: string
           player_id: string
           player_name: string
+          reduced_motion: boolean
           theme_preference: string
           updated_at: string
         }
@@ -100,9 +102,11 @@ export type Database = {
           avatar_preset?: string | null
           avatar_url?: string | null
           created_at?: string
+          font_size?: string
           id?: string
           player_id: string
           player_name?: string
+          reduced_motion?: boolean
           theme_preference?: string
           updated_at?: string
         }
@@ -111,9 +115,11 @@ export type Database = {
           avatar_preset?: string | null
           avatar_url?: string | null
           created_at?: string
+          font_size?: string
           id?: string
           player_id?: string
           player_name?: string
+          reduced_motion?: boolean
           theme_preference?: string
           updated_at?: string
         }

@@ -8,6 +8,8 @@ export interface PlayerProfile {
   avatar_preset: string;
   theme_preference: 'light' | 'dark';
   accent_color: string | null;
+  font_size: string;
+  reduced_motion: boolean;
 }
 
 // Predefined accent color options (HSL format)
@@ -155,6 +157,28 @@ export const usePlayerProfile = (playerId: string | null) => {
     }
   }, [playerId]);
 
+  const updateFontSize = useCallback(async (fontSize: string) => {
+    if (!playerId) return;
+    const { data } = await supabase
+      .from('player_profiles')
+      .update({ font_size: fontSize })
+      .eq('player_id', playerId)
+      .select()
+      .single();
+    if (data) setProfile(data as PlayerProfile);
+  }, [playerId]);
+
+  const updateReducedMotion = useCallback(async (reducedMotion: boolean) => {
+    if (!playerId) return;
+    const { data } = await supabase
+      .from('player_profiles')
+      .update({ reduced_motion: reducedMotion })
+      .eq('player_id', playerId)
+      .select()
+      .single();
+    if (data) setProfile(data as PlayerProfile);
+  }, [playerId]);
+
   const uploadAvatar = useCallback(async (file: File) => {
     if (!playerId) return null;
 
@@ -180,7 +204,7 @@ export const usePlayerProfile = (playerId: string | null) => {
     return url;
   }, [playerId, updateAvatar]);
 
-  return { profile, loading, ensureProfile, updateAvatar, uploadAvatar, updateTheme, updateAccentColor };
+  return { profile, loading, ensureProfile, updateAvatar, uploadAvatar, updateTheme, updateAccentColor, updateFontSize, updateReducedMotion };
 };
 
 // Hook to fetch multiple profiles at once (for rooms/games)
