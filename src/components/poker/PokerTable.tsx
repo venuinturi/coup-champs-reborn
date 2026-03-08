@@ -133,6 +133,7 @@ export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = f
             size="lg"
             animated={true}
             dealDelay={i * 150}
+            cardBack={cardBack}
           />
         ))}
         {[...Array(5 - gameState.communityCards.length)].map((_, i) => (
@@ -164,6 +165,7 @@ export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = f
                 size="md"
                 animated={true}
                 dealDelay={index * 100 + i * 80}
+                cardBack={cardBack}
               />
             ))}
           </div>
