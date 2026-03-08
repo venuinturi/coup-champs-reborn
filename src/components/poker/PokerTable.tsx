@@ -15,9 +15,10 @@ interface PokerTableProps {
   gameState: PokerGameState;
   localPlayerId: string;
   onAction: (action: PokerAction, amount?: number) => void;
+  isSpectator?: boolean;
 }
 
-export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTableProps) => {
+export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = false }: PokerTableProps) => {
   const [raiseAmount, setRaiseAmount] = useState<number>(gameState.bigBlind * 2);
   const prevPhaseRef = useRef(gameState.phase);
   const prevTurnRef = useRef<string | null>(null);
