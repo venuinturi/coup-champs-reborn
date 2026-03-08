@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import ThemeToggle from "@/components/ThemeToggle";
 import Index from "./pages/Index";
 import CoupIndex from "./pages/CoupIndex";
 import PokerIndex from "./pages/PokerIndex";
@@ -26,42 +28,45 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* Coup Routes */}
-          <Route path="/coup" element={<CoupIndex />} />
-          <Route path="/coup/game" element={<Game />} />
-          <Route path="/coup/room/:roomCode" element={<Room />} />
-          <Route path="/coup/multiplayer" element={<MultiplayerGame />} />
-          <Route path="/coup/test" element={<TestPage />} />
-          {/* Poker Routes */}
-          <Route path="/poker" element={<PokerIndex />} />
-          <Route path="/poker/room/:roomCode" element={<PokerRoom />} />
-          <Route path="/poker/game/:roomCode" element={<PokerGame />} />
-          {/* Blackjack Routes */}
-          <Route path="/blackjack" element={<BlackjackIndex />} />
-          <Route path="/blackjack/room/:roomCode" element={<BlackjackRoom />} />
-          <Route path="/blackjack/game/:roomCode" element={<BlackjackGame />} />
-          {/* Rummy Routes */}
-          <Route path="/rummy" element={<RummyIndex />} />
-          <Route path="/rummy/room/:roomCode" element={<RummyRoom />} />
-          <Route path="/rummy/game/:roomCode" element={<RummyGame />} />
-          {/* Leaderboard */}
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/profile" element={<Profile />} />
-          {/* Legacy routes */}
-          <Route path="/game" element={<Game />} />
-          <Route path="/room/:roomCode" element={<Room />} />
-          <Route path="/multiplayer" element={<MultiplayerGame />} />
-          <Route path="/test" element={<TestPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <TooltipProvider>
+        <ThemeToggle />
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            {/* Coup Routes */}
+            <Route path="/coup" element={<CoupIndex />} />
+            <Route path="/coup/game" element={<Game />} />
+            <Route path="/coup/room/:roomCode" element={<Room />} />
+            <Route path="/coup/multiplayer" element={<MultiplayerGame />} />
+            <Route path="/coup/test" element={<TestPage />} />
+            {/* Poker Routes */}
+            <Route path="/poker" element={<PokerIndex />} />
+            <Route path="/poker/room/:roomCode" element={<PokerRoom />} />
+            <Route path="/poker/game/:roomCode" element={<PokerGame />} />
+            {/* Blackjack Routes */}
+            <Route path="/blackjack" element={<BlackjackIndex />} />
+            <Route path="/blackjack/room/:roomCode" element={<BlackjackRoom />} />
+            <Route path="/blackjack/game/:roomCode" element={<BlackjackGame />} />
+            {/* Rummy Routes */}
+            <Route path="/rummy" element={<RummyIndex />} />
+            <Route path="/rummy/room/:roomCode" element={<RummyRoom />} />
+            <Route path="/rummy/game/:roomCode" element={<RummyGame />} />
+            {/* Leaderboard */}
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/profile" element={<Profile />} />
+            {/* Legacy routes */}
+            <Route path="/game" element={<Game />} />
+            <Route path="/room/:roomCode" element={<Room />} />
+            <Route path="/multiplayer" element={<MultiplayerGame />} />
+            <Route path="/test" element={<TestPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
