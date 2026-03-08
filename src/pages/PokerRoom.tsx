@@ -264,11 +264,22 @@ const PokerRoom = () => {
             )}
           >
             <div className="flex items-center gap-3">
-              {player.is_host && <Crown className="w-5 h-5 text-primary" />}
-              <span className="font-medium">{player.player_name}</span>
-              {player.player_id === playerId && (
-                <span className="text-xs text-muted-foreground">(You)</span>
-              )}
+              <PlayerAvatar
+                preset={profiles.get(player.player_id)?.avatar_preset}
+                customUrl={profiles.get(player.player_id)?.avatar_url}
+                size="md"
+                showRing={player.is_ready}
+                ringColor="ring-green-500"
+              />
+              <div>
+                <span className="font-medium flex items-center gap-1.5">
+                  {player.is_host && <Crown className="w-4 h-4 text-primary" />}
+                  {player.player_name}
+                </span>
+                {player.player_id === playerId && (
+                  <span className="text-xs text-muted-foreground">You</span>
+                )}
+              </div>
             </div>
             <span className={cn(
               "text-sm font-medium",
