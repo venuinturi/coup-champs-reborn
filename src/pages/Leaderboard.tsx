@@ -176,13 +176,20 @@ const Leaderboard = () => {
                 <div className="col-span-1 flex items-center">
                   {getRankIcon(index)}
                 </div>
-                <div className="col-span-4">
-                  <span className="font-medium text-foreground truncate block">
-                    {entry.player_name}
-                  </span>
-                  {entry.player_id === playerId && (
-                    <span className="text-[10px] text-primary/70 uppercase tracking-wider">You</span>
-                  )}
+                <div className="col-span-4 flex items-center gap-2">
+                  <PlayerAvatar
+                    preset={profiles.get(entry.player_id)?.avatar_preset}
+                    customUrl={profiles.get(entry.player_id)?.avatar_url}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <span className="font-medium text-foreground truncate block">
+                      {entry.player_name}
+                    </span>
+                    {entry.player_id === playerId && (
+                      <span className="text-[10px] text-primary/70 uppercase tracking-wider">You</span>
+                    )}
+                  </div>
                 </div>
                 <div className="col-span-2 text-center font-semibold text-foreground">
                   {entry.total_wins}
