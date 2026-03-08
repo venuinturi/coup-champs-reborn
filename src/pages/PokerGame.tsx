@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { GameChat } from "@/components/game/GameChat";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { PokerGameState, PokerAction } from "@/lib/poker/pokerTypes";
@@ -9,7 +10,9 @@ import { Button } from "@/components/ui/button";
 
 const PokerGame = () => {
   const { roomCode } = useParams<{ roomCode: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const playerName = searchParams.get("name") || "Player";
   const { playerId } = usePlayerAuth();
   const [gameState, setGameState] = useState<PokerGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -61,15 +64,18 @@ const PokerGame = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <Button variant="ghost" className="mb-4" onClick={() => navigate('/poker')}>← Leave Game</Button>
-      <PokerTable gameState={gameState} localPlayerId={playerId} onAction={handleAction} />
-      {gameState.phase === 'finished' && (
-        <div className="text-center mt-4">
-          <Button onClick={() => updateGameState(nextHand(gameState))}>Next Hand</Button>
-        </div>
-      )}
-    </div>
+    <>
+      <div className="min-h-screen bg-background p-4">
+        <Button variant="ghost" className="mb-4" onClick={() => navigate('/poker')}>← Leave Game</Button>
+        <PokerTable gameState={gameState} localPlayerId={playerId} onAction={handleAction} />
+        {gameState.phase === 'finished' && (
+          <div className="text-center mt-4">
+            <Button onClick={() => updateGameState(nextHand(gameState))}>Next Hand</Button>
+          </div>
+        )}
+      </div>
+      {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}
+    </>
   );
 };
 
