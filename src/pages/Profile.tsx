@@ -17,6 +17,7 @@ import {
   ArrowLeft, Trophy, Target, Coins, TrendingUp,
   Gamepad2, Calendar, Crown, Pencil, Check, X,
   Spade, Circle, Layers, Palette, Settings2,
+  ChevronDown, User, Brush,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -40,6 +41,55 @@ const resultColors: Record<string, string> = {
   draw: "text-amber-400",
 };
 
+/* ─── Collapsible section wrapper ─── */
+const Section = ({
+  icon: Icon,
+  title,
+  defaultOpen = false,
+  children,
+  accentHex,
+}: {
+  icon: any;
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  accentHex?: string;
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="glass-card border border-border/50 rounded-2xl overflow-hidden animate-fade-in transition-all duration-300">
+      <button
+        onClick={() => { setOpen(!open); sounds.buttonClick(); }}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-primary/5 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: accentHex ? `${accentHex}18` : undefined }}
+          >
+            <Icon className="w-4 h-4 text-primary" />
+          </div>
+          <span className="text-sm font-bold text-foreground tracking-wide">{title}</span>
+        </div>
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-muted-foreground transition-transform duration-300",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          "overflow-hidden transition-all duration-300",
+          open ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"
+        )}
+      >
+        <div className="px-5 pb-5 pt-1">{children}</div>
+      </div>
+    </div>
+  );
+};
+
 const Profile = () => {
   const navigate = useNavigate();
   const { playerId, loading: authLoading } = usePlayerAuth();
@@ -61,7 +111,6 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Fetch stats
   useEffect(() => {
     if (!playerId) return;
     const load = async () => {
@@ -72,7 +121,6 @@ const Profile = () => {
     load();
   }, [playerId, fetchPlayerStats]);
 
-  // Ensure profile exists
   useEffect(() => {
     if (playerId && !profile && !profileLoading) {
       ensureProfile("Player");
@@ -126,6 +174,8 @@ const Profile = () => {
     );
   }
 
+  const currentAccentHex = ACCENT_COLORS.find((c) => c.hsl === profile?.accent_color)?.preview ?? "#FFD700";
+
   const statCards = [
     { label: "Games Played", value: stats?.totalGames ?? 0, icon: Gamepad2, color: "text-primary" },
     { label: "Wins", value: stats?.wins ?? 0, icon: Trophy, color: "text-emerald-400" },
@@ -133,7 +183,6 @@ const Profile = () => {
     { label: "Total Coins", value: stats?.totalCoins ?? 0, icon: Coins, color: "text-amber-400" },
   ];
 
-  // Per-game breakdown
   const gameBreakdown = (stats?.recentGames ?? []).reduce<Record<string, { wins: number; games: number }>>((acc, g) => {
     if (!acc[g.game_type]) acc[g.game_type] = { wins: 0, games: 0 };
     acc[g.game_type].games++;
@@ -149,7 +198,7 @@ const Profile = () => {
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-6">
           <Button
             variant="ghost"
             size="icon"
@@ -161,14 +210,31 @@ const Profile = () => {
           <h1 className="text-3xl font-display font-bold text-foreground tracking-wide">Profile</h1>
         </div>
 
-        {/* Avatar & Name Card */}
-        <div className="glass-card border border-border/50 rounded-2xl p-6 mb-6 animate-fade-in">
-          <div className="flex items-center gap-5 mb-6">
-            <PlayerAvatar
-              preset={profile?.avatar_preset}
-              customUrl={profile?.avatar_url}
-              size="xl"
-            />
+        {/* Hero Card — Avatar + Name + Quick Stats */}
+        <div
+          className="glass-card border border-border/50 rounded-2xl p-6 mb-4 animate-fade-in relative overflow-hidden"
+        >
+          {/* Subtle accent gradient overlay */}
+          <div
+            className="absolute inset-0 opacity-[0.04] pointer-events-none"
+            style={{
+              background: `radial-gradient(ellipse at top left, ${currentAccentHex}, transparent 70%)`,
+            }}
+          />
+
+          <div className="relative flex items-center gap-5">
+            <div className="relative">
+              <PlayerAvatar
+                preset={profile?.avatar_preset}
+                customUrl={profile?.avatar_url}
+                size="xl"
+              />
+              {/* Glow ring */}
+              <div
+                className="absolute inset-0 rounded-full opacity-20 blur-md"
+                style={{ backgroundColor: currentAccentHex }}
+              />
+            </div>
             <div className="flex-1 min-w-0">
               {editingName ? (
                 <div className="flex items-center gap-2">
@@ -204,47 +270,56 @@ const Profile = () => {
               <p className="text-sm text-muted-foreground mt-1">
                 Player since {profile ? format(new Date(), "MMM yyyy") : "—"}
               </p>
+
+              {/* Inline mini stats */}
+              <div className="flex items-center gap-4 mt-3">
+                {[
+                  { icon: Trophy, value: stats?.wins ?? 0, label: "wins", color: "text-emerald-400" },
+                  { icon: Target, value: `${stats?.winRate ?? 0}%`, label: "rate", color: "text-violet-400" },
+                  { icon: Coins, value: stats?.totalCoins ?? 0, label: "coins", color: "text-amber-400" },
+                ].map((s) => (
+                  <div key={s.label} className="flex items-center gap-1.5">
+                    <s.icon className={cn("w-3.5 h-3.5", s.color)} />
+                    <span className="text-xs font-bold text-foreground">{s.value}</span>
+                    <span className="text-[10px] text-muted-foreground">{s.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Avatar Picker */}
-          <AvatarPicker
-            currentPreset={profile?.avatar_preset || "default"}
-            currentUrl={profile?.avatar_url}
-            onSelectPreset={handleSelectPreset}
-            onUpload={handleUpload}
-            uploading={uploading}
-          />
+        {/* Customization Sections */}
+        <div className="space-y-3 mb-6">
+          <Section icon={User} title="Avatar" defaultOpen={true} accentHex={currentAccentHex}>
+            <AvatarPicker
+              currentPreset={profile?.avatar_preset || "default"}
+              currentUrl={profile?.avatar_url}
+              onSelectPreset={handleSelectPreset}
+              onUpload={handleUpload}
+              uploading={uploading}
+            />
+          </Section>
 
-          {/* Accent Color Picker */}
-          <div className="mt-6 pt-6 border-t border-border/50">
-            <div className="flex items-center gap-2 mb-3">
-              <Palette className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-muted-foreground">Customize Theme</span>
-            </div>
+          <Section icon={Palette} title="Theme & Colors" defaultOpen={true} accentHex={currentAccentHex}>
             <AccentColorPicker
               currentAccent={profile?.accent_color ?? null}
               onSelectAccent={handleSelectAccent}
             />
-          </div>
+          </Section>
 
-          {/* Accessibility Settings */}
-          <div className="mt-6 pt-6 border-t border-border/50">
-            <div className="flex items-center gap-2 mb-3">
-              <Settings2 className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-muted-foreground">Accessibility</span>
-            </div>
+          <Section icon={Settings2} title="Accessibility" defaultOpen={false} accentHex={currentAccentHex}>
             <AccessibilitySettings
               fontSize={(profile?.font_size as FontSize) || 'medium'}
               reducedMotion={profile?.reduced_motion ?? false}
               onFontSizeChange={handleFontSizeChange}
               onReducedMotionChange={handleReducedMotionChange}
             />
-          </div>
+          </Section>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {statCards.map((stat, i) => (
             <div
               key={stat.label}
@@ -260,7 +335,7 @@ const Profile = () => {
 
         {/* Game Breakdown */}
         {Object.keys(gameBreakdown).length > 0 && (
-          <div className="glass-card border border-border/50 rounded-2xl p-5 mb-6 animate-fade-in" style={{ animationDelay: "0.3s", animationFillMode: "both" }}>
+          <div className="glass-card border border-border/50 rounded-2xl p-5 mb-4 animate-fade-in" style={{ animationDelay: "0.3s", animationFillMode: "both" }}>
             <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" />
               Per-Game Stats
@@ -278,7 +353,6 @@ const Profile = () => {
                         {data.wins}W / {data.games}G · {wr}%
                       </div>
                     </div>
-                    {/* Mini progress bar */}
                     <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary rounded-full transition-all"
