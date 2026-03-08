@@ -1,10 +1,13 @@
 import { RummyGameState, Card, Meld } from "@/lib/rummy/rummyTypes";
 import { getAvailableActions, sortCards, isJoker, validateMeld } from "@/lib/rummy/rummyEngine";
 import PlayingCard from "@/components/cards/PlayingCard";
+import Confetti from "@/components/Confetti";
+import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { sounds } from "@/lib/sounds";
 
 interface RummyTableProps {
   gameState: RummyGameState;
@@ -28,11 +31,38 @@ export const RummyTable = ({
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [melds, setMelds] = useState<Meld[]>([]);
   const [isArranging, setIsArranging] = useState(false);
+  const [showShake, setShowShake] = useState(false);
+  const prevPhaseRef = useRef(gameState.phase);
+  const prevHasDrawn = useRef(gameState.hasDrawn);
   
   const localPlayer = gameState.players.find(p => p.id === localPlayerId);
   const availableActions = getAvailableActions(gameState, localPlayerId);
   const isMyTurn = localPlayer?.isTurn || false;
   const sortedCards = localPlayer ? sortCards(localPlayer.cards, gameState.openJoker) : [];
+  const isWinner = gameState.winner === localPlayerId;
+  const isLoser = gameState.winner !== null && gameState.winner !== localPlayerId;
+
+  // Sound effects
+  useEffect(() => {
+    if (gameState.hasDrawn && !prevHasDrawn.current) {
+      sounds.draw();
+    }
+    prevHasDrawn.current = gameState.hasDrawn;
+  }, [gameState.hasDrawn]);
+
+  useEffect(() => {
+    if (gameState.winner && prevPhaseRef.current !== 'finished') {
+      if (isWinner) {
+        sounds.declare();
+        setTimeout(() => sounds.win(), 300);
+      } else {
+        sounds.lose();
+        setShowShake(true);
+        setTimeout(() => setShowShake(false), 500);
+      }
+    }
+    prevPhaseRef.current = gameState.phase;
+  }, [gameState.winner, gameState.phase, isWinner]);
   
   const topDiscard = gameState.discardPile.length > 0 
     ? gameState.discardPile[gameState.discardPile.length - 1] 
@@ -68,6 +98,7 @@ export const RummyTable = ({
 
     setMelds([...melds, newMeld]);
     setSelectedCards([]);
+    sounds.meldCreate();
     
     toast({ title: "Meld Created", description: `${result.type} (${result.isPure ? 'pure' : 'with joker'})` });
   };
@@ -128,7 +159,12 @@ export const RummyTable = ({
   const remainingCards = getRemainingCards();
 
   return (
-    <div className="relative w-full min-h-[700px] bg-gradient-to-br from-emerald-900 to-teal-800 rounded-3xl border-8 border-amber-800 shadow-2xl p-6">
+    <div className={cn(
+      "relative w-full min-h-[700px] bg-gradient-to-br from-emerald-900 to-teal-800 rounded-3xl border-8 border-amber-800 shadow-2xl p-6",
+      showShake && "animate-shake"
+    )}>
+      <SoundToggle />
+      <Confetti active={isWinner} />
       {/* Game message */}
       <div className="text-center mb-4">
         <div className="bg-black/40 backdrop-blur-sm rounded-lg px-6 py-3 inline-block">
@@ -332,14 +368,28 @@ export const RummyTable = ({
 
       {/* Winner announcement */}
       {gameState.winner && (
-        <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-3xl">
-          <div className="bg-card rounded-lg p-8 text-center animate-fade-in">
-            <h2 className="text-3xl font-bold text-primary mb-4">
-              {gameState.players.find(p => p.id === gameState.winner)?.name} Wins!
-            </h2>
-            <div className="space-y-2">
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-3xl z-40">
+          <div className="bg-card rounded-lg p-8 text-center animate-bounce-in">
+            {isWinner ? (
+              <>
+                <h2 className="text-3xl font-display font-bold text-primary shimmer-text mb-4">
+                  🎉 You Win!
+                </h2>
+                <p className="text-muted-foreground animate-fade-in">Congratulations!</p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-3xl font-display font-bold text-primary mb-4">
+                  {gameState.players.find(p => p.id === gameState.winner)?.name} Wins!
+                </h2>
+              </>
+            )}
+            <div className="space-y-2 mt-4">
               {gameState.players.map(player => (
-                <div key={player.id} className="text-muted-foreground">
+                <div key={player.id} className={cn(
+                  "text-muted-foreground",
+                  player.id === gameState.winner && "text-primary font-bold"
+                )}>
                   {player.name}: {player.points} points
                 </div>
               ))}
