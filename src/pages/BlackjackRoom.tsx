@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Copy, Check, Crown, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
+import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
 import { toast } from "@/hooks/use-toast";
 import { BlackjackGameState } from "@/lib/blackjack/blackjackTypes";
 import { createBlackjackGame } from "@/lib/blackjack/blackjackEngine";
 import { cn } from "@/lib/utils";
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 interface RoomPlayer {
   id: string;
