@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { GameChat } from "@/components/game/GameChat";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
+import { useGameHistory } from "@/hooks/useGameHistory";
 import { PokerGameState, PokerAction } from "@/lib/poker/pokerTypes";
 import { processAction, nextHand } from "@/lib/poker/pokerEngine";
 import PokerTable from "@/components/poker/PokerTable";
@@ -16,6 +17,8 @@ const PokerGame = () => {
   const { playerId } = usePlayerAuth();
   const [gameState, setGameState] = useState<PokerGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
+  const { recordGame } = useGameHistory();
+  const recordedRef = useRef(false);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -53,11 +56,22 @@ const PokerGame = () => {
     await supabase.from('game_rooms').update({ game_state: newState as any }).eq('id', roomId);
   }, [roomId]);
 
-  const handleAction = useCallback((action: PokerAction, amount?: number) => {
-    if (!gameState || !playerId) return;
-    const newState = processAction(gameState, playerId, action, amount);
-    updateGameState(newState);
-  }, [gameState, playerId, updateGameState]);
+  // Record game result when a hand finishes
+  useEffect(() => {
+    if (gameState?.phase === 'finished' && gameState.winner && playerId && !recordedRef.current) {
+      recordedRef.current = true;
+      const isWinner = gameState.winner === playerId;
+      const player = gameState.players.find(p => p.id === playerId);
+      recordGame(playerId, playerName, 'poker', isWinner ? 'win' : 'loss', roomCode, isWinner ? (gameState.pot || 0) : 0);
+    }
+  }, [gameState?.phase, gameState?.winner, playerId]);
+
+  // Reset recorded flag when new hand starts
+  useEffect(() => {
+    if (gameState?.phase === 'betting') {
+      recordedRef.current = false;
+    }
+  }, [gameState?.phase]);
 
   if (!gameState || !playerId) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
