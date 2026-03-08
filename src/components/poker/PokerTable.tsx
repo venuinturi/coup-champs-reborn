@@ -111,7 +111,7 @@ export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = f
       <Confetti active={gameState.winner === localPlayerId} />
 
       {/* Table felt pattern */}
-      <div className="absolute inset-0 opacity-30" style={patternStyle} />
+      <div className="absolute inset-0 opacity-30 pointer-events-none" style={patternStyle} />
 
       {/* Pot display */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 text-center">
