@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Trophy, Medal, Crown, Coins, Target, TrendingUp, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGameHistory, LeaderboardEntry, GameType } from "@/hooks/useGameHistory";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
+import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { cn } from "@/lib/utils";
 
 const gameFilters: { label: string; value: GameType | 'all' }[] = [
