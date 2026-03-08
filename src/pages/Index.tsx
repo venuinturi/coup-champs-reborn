@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Crown, Spade, Circle, Layers } from "lucide-react";
+import SoundToggle from "@/components/SoundToggle";
+import { sounds } from "@/lib/sounds";
 
 const games = [
   {
@@ -46,6 +48,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center px-4 py-12">
+      <SoundToggle />
       {/* Hero Section */}
       <div className="text-center space-y-4 mb-12 animate-fade-in">
         <h1 className="font-display text-5xl md:text-7xl tracking-wider bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
@@ -68,7 +71,12 @@ const Index = () => {
                 ? "cursor-pointer hover:border-primary hover:shadow-xl hover:scale-105"
                 : "opacity-60 cursor-not-allowed"
             }`}
-            onClick={() => game.available && navigate(game.path)}
+            onClick={() => {
+              if (game.available) {
+                sounds.buttonClick();
+                navigate(game.path);
+              }
+            }}
           >
             <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
               <div className={`p-4 rounded-full bg-gradient-to-br ${game.color} shadow-lg`}>
