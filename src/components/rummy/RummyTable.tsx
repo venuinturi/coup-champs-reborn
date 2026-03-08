@@ -22,6 +22,7 @@ interface RummyTableProps {
   onDeclare: (melds: Meld[]) => void;
   isSpectator?: boolean;
   tableFelt?: string;
+  cardBack?: string;
 }
 
 export const RummyTable = ({
