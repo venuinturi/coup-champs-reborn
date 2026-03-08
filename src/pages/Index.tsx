@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Crown, Spade, Circle, Layers, Sparkles, Zap, Trophy } from "lucide-react";
+import { Crown, Spade, Circle, Layers, Sparkles, Zap, Trophy, User } from "lucide-react";
 import SoundToggle from "@/components/SoundToggle";
 import { sounds } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
@@ -190,9 +190,9 @@ const Index = () => {
         </div>
 
         {/* Leaderboard Button */}
-        <div className="mt-12 animate-fade-in" style={{ animationDelay: "0.5s", animationFillMode: 'both' }}>
+        <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: "0.5s", animationFillMode: 'both' }}>
           <div
-            className="group glass-card border border-amber-500/20 hover:border-amber-500/40 rounded-2xl p-5 cursor-pointer transition-all duration-400 game-card-glow max-w-md mx-auto"
+            className="group glass-card border border-amber-500/20 hover:border-amber-500/40 rounded-2xl p-5 cursor-pointer transition-all duration-400 game-card-glow w-full max-w-[240px]"
             style={{ '--glow-color': '45 100% 50%' } as React.CSSProperties}
             onClick={() => { sounds.buttonClick(); navigate('/leaderboard'); }}
           >
@@ -202,9 +202,24 @@ const Index = () => {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-foreground">Leaderboard</h3>
-                <p className="text-sm text-muted-foreground">View rankings & stats</p>
+                <p className="text-sm text-muted-foreground">Rankings & stats</p>
               </div>
-              <Zap className="w-5 h-5 text-primary ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </div>
+          </div>
+
+          <div
+            className="group glass-card border border-violet-500/20 hover:border-violet-500/40 rounded-2xl p-5 cursor-pointer transition-all duration-400 game-card-glow w-full max-w-[240px]"
+            style={{ '--glow-color': '270 60% 55%' } as React.CSSProperties}
+            onClick={() => { sounds.buttonClick(); navigate('/profile'); }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-violet-400 to-purple-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <User className="w-6 h-6 text-background" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Profile</h3>
+                <p className="text-sm text-muted-foreground">Avatar & history</p>
+              </div>
             </div>
           </div>
         </div>
