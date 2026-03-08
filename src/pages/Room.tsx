@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CrownIcon } from '@/components/CrownIcon';
 import { useMultiplayer, RoomPlayer } from '@/hooks/useMultiplayer';
+import { usePlayersProfiles } from '@/hooks/usePlayerProfile';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import { createGame } from '@/lib/gameEngine';
 import { toast } from '@/hooks/use-toast';
 import { Copy, Crown, Users, Check, ArrowLeft, Play } from 'lucide-react';
@@ -116,6 +118,8 @@ const Room = () => {
   const currentPlayer = players.find(p => p.player_id === playerId);
   const isReady = currentPlayer?.is_ready ?? false;
   const allReady = players.every(p => p.is_ready);
+  const playerIds = useMemo(() => players.map(p => p.player_id), [players]);
+  const profiles = usePlayersProfiles(playerIds);
 
   if (!room && !loading) {
     return (
@@ -170,6 +174,7 @@ const Room = () => {
                 key={player.id}
                 player={player}
                 isCurrentPlayer={player.player_id === playerId}
+                profile={profiles.get(player.player_id)}
               />
             ))}
 
@@ -237,9 +242,11 @@ const Room = () => {
 const PlayerRow = ({
   player,
   isCurrentPlayer,
+  profile,
 }: {
   player: RoomPlayer;
   isCurrentPlayer: boolean;
+  profile?: { avatar_preset?: string; avatar_url?: string | null };
 }) => {
   return (
     <div
@@ -247,11 +254,13 @@ const PlayerRow = ({
         isCurrentPlayer ? 'bg-primary/10 border border-primary/30' : 'bg-muted/30'
       }`}
     >
-      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-        <span className="font-display text-primary">
-          {player.player_name.charAt(0).toUpperCase()}
-        </span>
-      </div>
+      <PlayerAvatar
+        preset={profile?.avatar_preset}
+        customUrl={profile?.avatar_url}
+        size="md"
+        showRing={player.is_ready}
+        ringColor="ring-green-500"
+      />
 
       <div className="flex-1">
         <div className="flex items-center gap-2">
