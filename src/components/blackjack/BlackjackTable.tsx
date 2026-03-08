@@ -3,11 +3,13 @@ import { getAvailableActions } from "@/lib/blackjack/blackjackEngine";
 import PlayingCard from "@/components/cards/PlayingCard";
 import Confetti from "@/components/Confetti";
 import SoundToggle from "@/components/SoundToggle";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { sounds } from "@/lib/sounds";
+import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
 
 interface BlackjackTableProps {
   gameState: BlackjackGameState;
@@ -29,6 +31,8 @@ export const BlackjackTable = ({
   const [betAmount, setBetAmount] = useState<number>(gameState.minBet);
   const prevPhaseRef = useRef(gameState.phase);
   const [showShake, setShowShake] = useState(false);
+  const playerIds = useMemo(() => gameState.players.map(p => p.id), [gameState.players]);
+  const profiles = usePlayersProfiles(playerIds);
   
   const localPlayer = gameState.players.find(p => p.id === localPlayerId);
   const availableActions = getAvailableActions(gameState, localPlayerId);
@@ -171,7 +175,12 @@ export const BlackjackTable = ({
 
             {/* Player info */}
             <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-center min-w-[140px]">
-              <div className="text-sm font-medium text-foreground">
+              <div className="text-sm font-medium text-foreground flex items-center justify-center gap-1.5">
+                <PlayerAvatar
+                  preset={profiles.get(player.id)?.avatar_preset}
+                  customUrl={profiles.get(player.id)?.avatar_url}
+                  size="sm"
+                />
                 {player.name}
                 {player.id === localPlayerId && <span className="text-xs ml-1">(You)</span>}
               </div>

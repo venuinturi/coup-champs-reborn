@@ -3,11 +3,13 @@ import { getAvailableActions, sortCards, isJoker, validateMeld } from "@/lib/rum
 import PlayingCard from "@/components/cards/PlayingCard";
 import Confetti from "@/components/Confetti";
 import SoundToggle from "@/components/SoundToggle";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { sounds } from "@/lib/sounds";
+import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
 
 interface RummyTableProps {
   gameState: RummyGameState;
@@ -34,6 +36,8 @@ export const RummyTable = ({
   const [showShake, setShowShake] = useState(false);
   const prevPhaseRef = useRef(gameState.phase);
   const prevHasDrawn = useRef(gameState.hasDrawn);
+  const playerIds = useMemo(() => gameState.players.map(p => p.id), [gameState.players]);
+  const profiles = usePlayersProfiles(playerIds);
   
   const localPlayer = gameState.players.find(p => p.id === localPlayerId);
   const availableActions = getAvailableActions(gameState, localPlayerId);
@@ -242,7 +246,14 @@ export const RummyTable = ({
               player.isTurn && "ring-2 ring-primary"
             )}
           >
-            <div className="text-sm font-medium text-foreground">{player.name}</div>
+            <div className="text-sm font-medium text-foreground flex items-center justify-center gap-1.5">
+              <PlayerAvatar
+                preset={profiles.get(player.id)?.avatar_preset}
+                customUrl={profiles.get(player.id)?.avatar_url}
+                size="sm"
+              />
+              {player.name}
+            </div>
             <div className="text-xs text-muted-foreground">{player.cards.length} cards</div>
             {player.hasDropped && (
               <div className="text-xs text-destructive">Dropped ({player.points} pts)</div>
@@ -283,7 +294,12 @@ export const RummyTable = ({
       {localPlayer && (
         <div className="bg-black/40 backdrop-blur-sm rounded-lg p-4">
           <div className="flex justify-between items-center mb-3">
-            <div className="text-sm font-medium text-foreground">
+            <div className="text-sm font-medium text-foreground flex items-center gap-2">
+              <PlayerAvatar
+                preset={profiles.get(localPlayerId)?.avatar_preset}
+                customUrl={profiles.get(localPlayerId)?.avatar_url}
+                size="sm"
+              />
               Your Cards ({remainingCards.length})
             </div>
             <div className="text-sm text-muted-foreground">
