@@ -143,10 +143,20 @@ const RummyIndex = () => {
               </h2>
             </div>
             <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-sm">Your Name</Label>
-                <Input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Enter your name" className="bg-muted/50 border-border/50" />
+              <div className="flex items-center gap-4">
+                <PlayerAvatar preset={profile?.avatar_preset || 'default'} customUrl={profile?.avatar_url} size="lg" />
+                <div className="flex-1 space-y-2">
+                  <Label className="text-muted-foreground text-sm">Your Name</Label>
+                  <Input value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Enter your name" className="bg-muted/50 border-border/50" />
+                </div>
               </div>
+              <AvatarPicker
+                currentPreset={profile?.avatar_preset || 'default'}
+                currentUrl={profile?.avatar_url}
+                onSelectPreset={(preset) => updateAvatar(preset)}
+                onUpload={async (file) => { setUploading(true); await uploadAvatar(file); setUploading(false); }}
+                uploading={uploading}
+              />
 
               <div className="space-y-2">
                 <Label className="text-muted-foreground text-sm flex items-center gap-1.5"><Users className="w-3.5 h-3.5" />Number of Players</Label>
