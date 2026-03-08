@@ -2,6 +2,7 @@ import { PokerGameState, PokerAction } from "@/lib/poker/pokerTypes";
 import { getAvailableActions } from "@/lib/poker/pokerEngine";
 import PlayingCard from "@/components/cards/PlayingCard";
 import PlayerAvatar from "@/components/PlayerAvatar";
+import PokerChip from "@/components/PokerChip";
 import Confetti from "@/components/Confetti";
 import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
@@ -19,9 +20,10 @@ interface PokerTableProps {
   isSpectator?: boolean;
   tableFelt?: string;
   cardBack?: string;
+  chipStyle?: string;
 }
 
-export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = false, tableFelt, cardBack }: PokerTableProps) => {
+export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = false, tableFelt, cardBack, chipStyle }: PokerTableProps) => {
   const { felt, feltStyle, patternStyle } = useTableFelt(tableFelt);
   const [raiseAmount, setRaiseAmount] = useState<number>(gameState.bigBlind * 2);
   const prevPhaseRef = useRef(gameState.phase);
@@ -109,7 +111,7 @@ export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = f
       <Confetti active={gameState.winner === localPlayerId} />
 
       {/* Table felt pattern */}
-      <div className="absolute inset-0 opacity-30" style={patternStyle} />
+      <div className="absolute inset-0 opacity-30 pointer-events-none" style={patternStyle} />
 
       {/* Pot display */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 text-center">
@@ -118,7 +120,10 @@ export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = f
           gameState.pot > 0 && "animate-chip-bounce"
         )}>
           <div className="text-sm text-muted-foreground">Pot</div>
-          <div className="text-2xl font-bold text-primary">${gameState.pot}</div>
+          <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1.5">
+            <PokerChip chipStyle={chipStyle} size="sm" />
+            ${gameState.pot}
+          </div>
         </div>
       </div>
 
@@ -188,7 +193,10 @@ export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = f
             </div>
             <div className="text-xs text-muted-foreground">${player.chips}</div>
             {player.currentBet > 0 && (
-              <div className="text-xs text-primary animate-slide-up">Bet: ${player.currentBet}</div>
+              <div className="text-xs text-primary animate-slide-up flex items-center justify-center gap-1">
+                <PokerChip chipStyle={chipStyle || profiles.get(player.id)?.chip_style} size="sm" />
+                ${player.currentBet}
+              </div>
             )}
             {player.folded && (
               <div className="text-xs text-destructive animate-fade-in">Folded</div>

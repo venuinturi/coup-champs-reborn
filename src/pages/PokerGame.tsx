@@ -101,6 +101,7 @@ const PokerGame = () => {
           isSpectator={isSpectator}
           tableFelt={profile?.table_felt}
           cardBack={(profile as any)?.card_back}
+          chipStyle={(profile as any)?.chip_style}
         />
         {gameState.phase === 'finished' && !isSpectator && (
           <div className="text-center mt-4">
