@@ -227,6 +227,20 @@ const Profile = () => {
               onSelectAccent={handleSelectAccent}
             />
           </div>
+
+          {/* Accessibility Settings */}
+          <div className="mt-6 pt-6 border-t border-border/50">
+            <div className="flex items-center gap-2 mb-3">
+              <Settings2 className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-muted-foreground">Accessibility</span>
+            </div>
+            <AccessibilitySettings
+              fontSize={(profile?.font_size as FontSize) || 'medium'}
+              reducedMotion={profile?.reduced_motion ?? false}
+              onFontSizeChange={handleFontSizeChange}
+              onReducedMotionChange={handleReducedMotionChange}
+            />
+          </div>
         </div>
 
         {/* Stats Grid */}
