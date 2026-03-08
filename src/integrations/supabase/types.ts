@@ -88,6 +88,7 @@ export type Database = {
           accent_color: string | null
           avatar_preset: string | null
           avatar_url: string | null
+          card_back: string
           created_at: string
           font_size: string
           id: string
@@ -102,6 +103,7 @@ export type Database = {
           accent_color?: string | null
           avatar_preset?: string | null
           avatar_url?: string | null
+          card_back?: string
           created_at?: string
           font_size?: string
           id?: string
@@ -116,6 +118,7 @@ export type Database = {
           accent_color?: string | null
           avatar_preset?: string | null
           avatar_url?: string | null
+          card_back?: string
           created_at?: string
           font_size?: string
           id?: string
