@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 interface PlayingCardProps {
   suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
@@ -9,6 +10,8 @@ interface PlayingCardProps {
   onClick?: () => void;
   selected?: boolean;
   isJoker?: boolean;
+  animated?: boolean;
+  dealDelay?: number;
 }
 
 const suitSymbols = {
@@ -40,10 +43,27 @@ export const PlayingCard = ({
   onClick,
   selected = false,
   isJoker = false,
+  animated = false,
+  dealDelay = 0,
 }: PlayingCardProps) => {
+  const [dealt, setDealt] = useState(!animated);
   const sizeClass = sizeClasses[size];
   const suitSymbol = suitSymbols[suit];
   const colorClass = suitColors[suit];
+
+  useEffect(() => {
+    if (animated && !dealt) {
+      const timer = setTimeout(() => setDealt(true), dealDelay);
+      return () => clearTimeout(timer);
+    }
+  }, [animated, dealt, dealDelay]);
+
+  if (animated && !dealt) {
+    return <div className={cn(sizeClass, "opacity-0", className)} />;
+  }
+
+  const animClass = animated ? "animate-card-deal" : "";
+  const animStyle = animated ? { animationDelay: `${dealDelay}ms` } : undefined;
 
   if (isJoker) {
     return (
@@ -52,11 +72,13 @@ export const PlayingCard = ({
           "relative rounded-lg shadow-lg border-2 flex flex-col items-center justify-center font-bold cursor-pointer transition-all duration-200",
           sizeClass,
           "bg-gradient-to-br from-purple-500 to-pink-500 border-purple-400 text-white",
-          selected && "ring-2 ring-primary -translate-y-2",
+          selected && "ring-2 ring-primary -translate-y-2 shadow-[0_0_12px_hsl(var(--primary)/0.4)]",
           onClick && "hover:scale-105",
+          animClass,
           className
         )}
         onClick={onClick}
+        style={animStyle}
       >
         <span className="text-lg">🃏</span>
         <span className="text-[10px]">JOKER</span>
@@ -71,9 +93,11 @@ export const PlayingCard = ({
           "relative rounded-lg shadow-lg border-2 border-primary/30 flex items-center justify-center cursor-pointer transition-all duration-200",
           sizeClass,
           "bg-gradient-to-br from-primary/20 to-primary/10",
+          animClass,
           className
         )}
         onClick={onClick}
+        style={animStyle}
       >
         <div className="w-3/4 h-3/4 rounded border border-primary/40 bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
           <span className="text-primary/60 text-lg">♠</span>
@@ -88,11 +112,13 @@ export const PlayingCard = ({
         "relative rounded-lg shadow-lg border-2 flex flex-col p-1 cursor-pointer transition-all duration-200",
         sizeClass,
         "bg-white border-gray-200",
-        selected && "ring-2 ring-primary -translate-y-2",
-        onClick && "hover:scale-105 hover:-translate-y-1",
+        selected && "ring-2 ring-primary -translate-y-2 shadow-[0_0_12px_hsl(var(--primary)/0.4)]",
+        onClick && "hover:scale-105 hover:-translate-y-1 hover:shadow-xl",
+        animClass,
         className
       )}
       onClick={onClick}
+      style={animStyle}
     >
       {/* Top left corner */}
       <div className={cn("flex flex-col items-center leading-none", colorClass)}>

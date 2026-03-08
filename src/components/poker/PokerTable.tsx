@@ -1,10 +1,13 @@
 import { PokerGameState, PokerAction } from "@/lib/poker/pokerTypes";
 import { getAvailableActions } from "@/lib/poker/pokerEngine";
 import PlayingCard from "@/components/cards/PlayingCard";
+import Confetti from "@/components/Confetti";
+import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { sounds } from "@/lib/sounds";
 
 interface PokerTableProps {
   gameState: PokerGameState;
@@ -14,11 +17,55 @@ interface PokerTableProps {
 
 export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTableProps) => {
   const [raiseAmount, setRaiseAmount] = useState<number>(gameState.bigBlind * 2);
+  const prevPhaseRef = useRef(gameState.phase);
+  const prevTurnRef = useRef<string | null>(null);
+  const prevLastAction = useRef(gameState.lastAction);
   
   const localPlayer = gameState.players.find(p => p.id === localPlayerId);
   const availableActions = getAvailableActions(gameState, localPlayerId);
   const isMyTurn = localPlayer?.isTurn || false;
   const callAmount = localPlayer ? gameState.currentBet - localPlayer.currentBet : 0;
+
+  // Sound effects for game events
+  useEffect(() => {
+    // Play sound when it becomes your turn
+    if (isMyTurn && prevTurnRef.current !== localPlayerId) {
+      sounds.yourTurn();
+    }
+    const currentTurnPlayer = gameState.players.find(p => p.isTurn);
+    prevTurnRef.current = currentTurnPlayer?.id || null;
+  }, [isMyTurn, gameState.players, localPlayerId]);
+
+  useEffect(() => {
+    if (gameState.phase === 'dealing' && prevPhaseRef.current !== 'dealing') {
+      // Staggered deal sounds
+      gameState.players.forEach((_, i) => {
+        setTimeout(() => sounds.cardDeal(), i * 100);
+        setTimeout(() => sounds.cardDeal(), (gameState.players.length + i) * 100);
+      });
+    }
+    if (gameState.phase === 'finished' && prevPhaseRef.current !== 'finished') {
+      if (gameState.winner === localPlayerId) {
+        sounds.win();
+      } else {
+        sounds.lose();
+      }
+    }
+    prevPhaseRef.current = gameState.phase;
+  }, [gameState.phase, gameState.winner, localPlayerId, gameState.players]);
+
+  // Sound on actions
+  useEffect(() => {
+    if (gameState.lastAction && gameState.lastAction !== prevLastAction.current) {
+      const action = gameState.lastAction.action;
+      if (action === 'fold') sounds.fold();
+      else if (action === 'check') sounds.check();
+      else if (action === 'call') sounds.call();
+      else if (action === 'raise') sounds.raise();
+      else if (action === 'all-in') sounds.allIn();
+    }
+    prevLastAction.current = gameState.lastAction;
+  }, [gameState.lastAction]);
 
   const handleAction = (action: PokerAction) => {
     if (action === 'raise') {
@@ -28,20 +75,18 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
     }
   };
 
-  // Position players around the table
-  const getPlayerPosition = (index: number, total: number) => {
+  const getPlayerPosition = (index: number) => {
     const positions = [
-      'bottom-4 left-1/2 -translate-x-1/2', // 0 - bottom center (local player)
-      'left-4 top-1/2 -translate-y-1/2',    // 1 - left
-      'top-4 left-1/4',                      // 2 - top left
-      'top-4 right-1/4',                     // 3 - top right
-      'right-4 top-1/2 -translate-y-1/2',   // 4 - right
-      'bottom-4 right-1/4',                  // 5 - bottom right
+      'bottom-4 left-1/2 -translate-x-1/2',
+      'left-4 top-1/2 -translate-y-1/2',
+      'top-4 left-1/4',
+      'top-4 right-1/4',
+      'right-4 top-1/2 -translate-y-1/2',
+      'bottom-4 right-1/4',
     ];
     return positions[index % positions.length];
   };
 
-  // Reorder players so local player is first
   const orderedPlayers = [...gameState.players];
   const localIndex = orderedPlayers.findIndex(p => p.id === localPlayerId);
   if (localIndex > 0) {
@@ -51,6 +96,9 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
 
   return (
     <div className="relative w-full h-full min-h-[600px] bg-gradient-to-br from-green-900 to-green-800 rounded-[100px] border-8 border-amber-800 shadow-2xl overflow-hidden">
+      <SoundToggle />
+      <Confetti active={gameState.winner === localPlayerId} />
+
       {/* Table felt pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="w-full h-full" style={{
@@ -61,7 +109,10 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
 
       {/* Pot display */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 text-center">
-        <div className="bg-black/40 backdrop-blur-sm rounded-lg px-6 py-3">
+        <div className={cn(
+          "bg-black/40 backdrop-blur-sm rounded-lg px-6 py-3 transition-all duration-300",
+          gameState.pot > 0 && "animate-chip-bounce"
+        )}>
           <div className="text-sm text-muted-foreground">Pot</div>
           <div className="text-2xl font-bold text-primary">${gameState.pot}</div>
         </div>
@@ -76,9 +127,10 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
             rank={card.rank}
             faceUp={card.faceUp}
             size="lg"
+            animated={true}
+            dealDelay={i * 150}
           />
         ))}
-        {/* Placeholder cards */}
         {[...Array(5 - gameState.communityCards.length)].map((_, i) => (
           <div
             key={`placeholder-${i}`}
@@ -92,9 +144,10 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
         <div
           key={player.id}
           className={cn(
-            "absolute flex flex-col items-center gap-2",
-            getPlayerPosition(index, orderedPlayers.length)
+            "absolute flex flex-col items-center gap-2 animate-fade-in",
+            getPlayerPosition(index)
           )}
+          style={{ animationDelay: `${index * 100}ms` }}
         >
           {/* Player cards */}
           <div className="flex gap-1">
@@ -105,29 +158,32 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
                 rank={card.rank}
                 faceUp={player.id === localPlayerId || gameState.phase === 'showdown'}
                 size="md"
+                animated={true}
+                dealDelay={index * 100 + i * 80}
               />
             ))}
           </div>
 
           {/* Player info */}
           <div className={cn(
-            "bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-center min-w-[120px]",
-            player.isTurn && "ring-2 ring-primary animate-pulse",
-            player.folded && "opacity-50"
+            "bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-center min-w-[120px] transition-all duration-300",
+            player.isTurn && "ring-2 ring-primary animate-pulse-ring turn-glow",
+            player.folded && "opacity-50",
+            player.id === gameState.winner && "animate-winner-glow"
           )}>
             <div className="text-sm font-medium text-foreground flex items-center justify-center gap-1">
               {player.name}
-              {player.isDealer && <span className="text-xs bg-primary text-primary-foreground px-1 rounded">D</span>}
+              {player.isDealer && <span className="text-xs bg-primary text-primary-foreground px-1 rounded animate-bounce-in">D</span>}
             </div>
             <div className="text-xs text-muted-foreground">${player.chips}</div>
             {player.currentBet > 0 && (
-              <div className="text-xs text-primary">Bet: ${player.currentBet}</div>
+              <div className="text-xs text-primary animate-slide-up">Bet: ${player.currentBet}</div>
             )}
             {player.folded && (
-              <div className="text-xs text-destructive">Folded</div>
+              <div className="text-xs text-destructive animate-fade-in">Folded</div>
             )}
             {player.isAllIn && (
-              <div className="text-xs text-amber-500">All-In!</div>
+              <div className="text-xs text-amber-500 animate-bounce-in font-bold">All-In!</div>
             )}
           </div>
         </div>
@@ -135,20 +191,20 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
 
       {/* Action buttons */}
       {isMyTurn && gameState.phase === 'betting' && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 bg-black/60 backdrop-blur-sm rounded-lg p-4">
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 bg-black/60 backdrop-blur-sm rounded-lg p-4 animate-slide-up">
           <div className="flex gap-2 flex-wrap justify-center">
             {availableActions.includes('fold') && (
-              <Button variant="destructive" onClick={() => handleAction('fold')}>
+              <Button variant="destructive" onClick={() => handleAction('fold')} className="hover-scale">
                 Fold
               </Button>
             )}
             {availableActions.includes('check') && (
-              <Button variant="secondary" onClick={() => handleAction('check')}>
+              <Button variant="secondary" onClick={() => handleAction('check')} className="hover-scale">
                 Check
               </Button>
             )}
             {availableActions.includes('call') && (
-              <Button variant="secondary" onClick={() => handleAction('call')}>
+              <Button variant="secondary" onClick={() => handleAction('call')} className="hover-scale">
                 Call ${callAmount}
               </Button>
             )}
@@ -161,13 +217,13 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
                   className="w-24"
                   min={gameState.minRaise}
                 />
-                <Button onClick={() => handleAction('raise')}>
+                <Button onClick={() => handleAction('raise')} className="hover-scale">
                   Raise
                 </Button>
               </div>
             )}
             {availableActions.includes('all-in') && (
-              <Button variant="default" className="bg-amber-600 hover:bg-amber-700" onClick={() => handleAction('all-in')}>
+              <Button variant="default" className="bg-amber-600 hover:bg-amber-700 hover-scale" onClick={() => handleAction('all-in')}>
                 All-In
               </Button>
             )}
@@ -180,7 +236,7 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
         <div className="bg-black/40 backdrop-blur-sm rounded-lg px-4 py-2">
           <div className="text-sm text-muted-foreground capitalize">{gameState.bettingRound}</div>
           {gameState.lastAction && (
-            <div className="text-xs text-foreground">
+            <div className="text-xs text-foreground animate-fade-in">
               {gameState.players.find(p => p.id === gameState.lastAction?.playerId)?.name}: {gameState.lastAction.action}
               {gameState.lastAction.amount && ` $${gameState.lastAction.amount}`}
             </div>
@@ -191,12 +247,12 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
       {/* Winner announcement */}
       {gameState.winner && (
         <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-          <div className="bg-card rounded-lg p-8 text-center animate-fade-in">
+          <div className="bg-card rounded-lg p-8 text-center animate-bounce-in">
             <h2 className="text-3xl font-bold text-primary mb-2">
               {gameState.players.find(p => p.id === gameState.winner)?.name} Wins!
             </h2>
             {gameState.winningHand && (
-              <p className="text-muted-foreground">{gameState.winningHand}</p>
+              <p className="text-muted-foreground animate-fade-in">{gameState.winningHand}</p>
             )}
           </div>
         </div>
