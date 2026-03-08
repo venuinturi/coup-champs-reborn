@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Copy, Check, Crown, Users } from "lucide-react";
+import { ArrowLeft, Copy, Check, Crown, Users, Coins, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { toast } from "@/hooks/use-toast";
@@ -17,12 +17,18 @@ interface RoomPlayer {
   is_ready: boolean;
 }
 
+interface PokerConfig {
+  startingChips: number;
+  blinds: string;
+  maxPlayers: number;
+}
+
 interface GameRoom {
   id: string;
   room_code: string;
   host_id: string;
   status: string;
-  game_state: PokerGameState | null;
+  game_state: (PokerGameState & { config?: PokerConfig }) | { config: PokerConfig } | null;
 }
 
 const PokerRoom = () => {
@@ -134,15 +140,21 @@ const PokerRoom = () => {
       .eq('id', currentPlayer.id);
   };
 
+  // Extract config from game_state
+  const roomConfig: PokerConfig = (() => {
+    const gs = room?.game_state as any;
+    if (gs?.config) return gs.config;
+    return { startingChips: 1000, blinds: "10/20", maxPlayers: 6 };
+  })();
+
   const handleStartGame = async () => {
     if (!room || !isHost || !allReady) return;
     setLoading(true);
 
     try {
-      // Get settings from localStorage
-      const settings = JSON.parse(localStorage.getItem("pokerSettings") || "{}");
-      const startingChips = settings.startingChips || 1000;
-      const blindsStr = settings.blinds || "10/20";
+      // Read settings from room's game_state config (set during room creation)
+      const startingChips = roomConfig.startingChips;
+      const blindsStr = roomConfig.blinds;
       const [smallBlind, bigBlind] = blindsStr.split("/").map(Number);
 
       // Create game state
@@ -213,6 +225,22 @@ const PokerRoom = () => {
           {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-muted-foreground" />}
         </div>
         <p className="text-sm text-muted-foreground mt-2">Share this code with friends</p>
+
+        {/* Game Settings Display */}
+        <div className="flex flex-wrap justify-center gap-3 mt-4">
+          <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-3 py-2">
+            <Coins className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">{roomConfig.startingChips.toLocaleString()} chips</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-3 py-2">
+            <Eye className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Blinds: ${roomConfig.blinds.replace("/", " / $")}</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-3 py-2">
+            <Users className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Max {roomConfig.maxPlayers} players</span>
+          </div>
+        </div>
       </div>
 
       {/* Players List */}
