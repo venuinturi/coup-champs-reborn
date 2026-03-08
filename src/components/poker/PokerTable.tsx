@@ -1,13 +1,15 @@
 import { PokerGameState, PokerAction } from "@/lib/poker/pokerTypes";
 import { getAvailableActions } from "@/lib/poker/pokerEngine";
 import PlayingCard from "@/components/cards/PlayingCard";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import Confetti from "@/components/Confetti";
 import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { sounds } from "@/lib/sounds";
+import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
 
 interface PokerTableProps {
   gameState: PokerGameState;
@@ -25,6 +27,8 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
   const availableActions = getAvailableActions(gameState, localPlayerId);
   const isMyTurn = localPlayer?.isTurn || false;
   const callAmount = localPlayer ? gameState.currentBet - localPlayer.currentBet : 0;
+  const playerIds = useMemo(() => gameState.players.map(p => p.id), [gameState.players]);
+  const profiles = usePlayersProfiles(playerIds);
 
   // Sound effects for game events
   useEffect(() => {
@@ -171,7 +175,12 @@ export const PokerTable = ({ gameState, localPlayerId, onAction }: PokerTablePro
             player.folded && "opacity-50",
             player.id === gameState.winner && "animate-winner-glow"
           )}>
-            <div className="text-sm font-medium text-foreground flex items-center justify-center gap-1">
+            <div className="text-sm font-medium text-foreground flex items-center justify-center gap-1.5">
+              <PlayerAvatar
+                preset={profiles.get(player.id)?.avatar_preset}
+                customUrl={profiles.get(player.id)?.avatar_url}
+                size="sm"
+              />
               {player.name}
               {player.isDealer && <span className="text-xs bg-primary text-primary-foreground px-1 rounded animate-bounce-in">D</span>}
             </div>
