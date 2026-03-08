@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Spade, Users, Plus, LogIn } from "lucide-react";
 import { useMultiplayer } from "@/hooks/useMultiplayer";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const PokerIndex = () => {
   const navigate = useNavigate();
@@ -32,14 +33,31 @@ const PokerIndex = () => {
     }
 
     localStorage.setItem("playerName", playerName);
-    localStorage.setItem("pokerSettings", JSON.stringify({
-      maxPlayers: parseInt(maxPlayers),
-      startingChips: parseInt(startingChips),
-      blinds,
-    }));
 
     const code = await createRoom(playerName);
     if (code) {
+      // Store poker settings in the room's game_state so all players can see them
+      const settings = {
+        config: {
+          startingChips: parseInt(startingChips),
+          blinds,
+          maxPlayers: parseInt(maxPlayers),
+        },
+      };
+
+      const { data: roomData } = await supabase
+        .from('game_rooms')
+        .select('id')
+        .eq('room_code', code)
+        .single();
+
+      if (roomData) {
+        await supabase
+          .from('game_rooms')
+          .update({ game_state: settings as any, max_players: parseInt(maxPlayers) })
+          .eq('id', roomData.id);
+      }
+
       navigate(`/poker/room/${code}?name=${encodeURIComponent(playerName)}`);
     }
   };
