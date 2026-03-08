@@ -14,6 +14,7 @@ const PokerGame = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const playerName = searchParams.get("name") || "Player";
+  const isSpectator = searchParams.get("spectator") === "true";
   const { playerId } = usePlayerAuth();
   const [gameState, setGameState] = useState<PokerGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -86,8 +87,18 @@ const PokerGame = () => {
     <>
       <div className="min-h-screen bg-background p-4">
         <Button variant="ghost" className="mb-4" onClick={() => navigate('/poker')}>← Leave Game</Button>
-        <PokerTable gameState={gameState} localPlayerId={playerId} onAction={handleAction} />
-        {gameState.phase === 'finished' && (
+        {isSpectator && (
+          <div className="mb-4 flex items-center justify-center gap-2 text-muted-foreground bg-muted/30 rounded-lg py-2 px-4 mx-auto w-fit">
+            <span>👁️ Spectator Mode</span>
+          </div>
+        )}
+        <PokerTable 
+          gameState={gameState} 
+          localPlayerId={playerId} 
+          onAction={isSpectator ? () => {} : handleAction} 
+          isSpectator={isSpectator}
+        />
+        {gameState.phase === 'finished' && !isSpectator && (
           <div className="text-center mt-4">
             <Button onClick={() => updateGameState(nextHand(gameState))}>Next Hand</Button>
           </div>
