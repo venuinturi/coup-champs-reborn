@@ -5,9 +5,11 @@ import Confetti from "@/components/Confetti";
 import SoundToggle from "@/components/SoundToggle";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import PokerChip from "@/components/PokerChip";
+import ChipToss from "@/components/game/ChipToss";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { sounds } from "@/lib/sounds";
 import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
@@ -199,12 +201,15 @@ export const BlackjackTable = ({
                 {player.id === localPlayerId && <span className="text-xs ml-1">(You)</span>}
               </div>
               <div className="text-xs text-muted-foreground">Chips: ${player.chips}</div>
-              {player.currentBet > 0 && (
-                <div className="text-xs text-primary flex items-center justify-center gap-1">
-                  <PokerChip chipStyle={chipStyle || profiles.get(player.id)?.chip_style} size="sm" />
-                  ${player.currentBet}
-                </div>
-              )}
+              <AnimatePresence>
+                {player.currentBet > 0 && (
+                  <ChipToss
+                    key={`${player.id}-bet-${player.currentBet}`}
+                    chipStyle={chipStyle || profiles.get(player.id)?.chip_style}
+                    amount={player.currentBet}
+                  />
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Betting controls for local player */}
