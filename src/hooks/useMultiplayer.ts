@@ -128,7 +128,7 @@ export const useMultiplayer = () => {
   }, [playerId]);
 
   // Join an existing room
-  const joinRoom = useCallback(async (roomCode: string, playerName: string): Promise<boolean> => {
+  const joinRoom = useCallback(async (roomCode: string, playerName: string, asSpectator: boolean = false): Promise<boolean> => {
     if (!playerId) {
       toast({
         title: 'Error',
@@ -142,32 +142,46 @@ export const useMultiplayer = () => {
     setError(null);
 
     try {
-      // Find room
+      // Find room - allow joining playing games as spectator
       const { data: roomData, error: roomError } = await supabase
         .from('game_rooms')
         .select('*')
         .eq('room_code', roomCode.toUpperCase())
-        .eq('status', 'waiting')
         .maybeSingle();
 
       if (roomError) throw roomError;
       if (!roomData) {
-        throw new Error('Room not found or game already started');
+        throw new Error('Room not found');
       }
 
-      // Check player count
+      // Only allow joining waiting rooms as player
+      if (!asSpectator && roomData.status !== 'waiting') {
+        throw new Error('Game already started. You can join as a spectator instead.');
+      }
+
+      // Check player count (only for non-spectators)
       const { data: existingPlayers } = await supabase
         .from('room_players')
         .select('*')
         .eq('room_id', roomData.id);
 
-      if (existingPlayers && existingPlayers.length >= roomData.max_players) {
-        throw new Error('Room is full');
+      if (!asSpectator && existingPlayers) {
+        const activePlayers = existingPlayers.filter(p => !p.is_spectator);
+        if (activePlayers.length >= roomData.max_players) {
+          throw new Error('Room is full. You can join as a spectator instead.');
+        }
       }
 
       // Check if already in room
-      const alreadyJoined = existingPlayers?.some(p => p.player_id === playerId);
-      if (alreadyJoined) {
+      const existingEntry = existingPlayers?.find(p => p.player_id === playerId);
+      if (existingEntry) {
+        // Update spectator status if needed
+        if (existingEntry.is_spectator !== asSpectator) {
+          await supabase
+            .from('room_players')
+            .update({ is_spectator: asSpectator })
+            .eq('id', existingEntry.id);
+        }
         console.log('Already in room');
         return true;
       }
@@ -180,12 +194,13 @@ export const useMultiplayer = () => {
           player_id: playerId,
           player_name: playerName,
           is_host: false,
-          is_ready: false,
+          is_ready: asSpectator, // Spectators are always "ready"
+          is_spectator: asSpectator,
         });
 
       if (joinError) throw joinError;
 
-      console.log('Joined room:', roomCode);
+      console.log(asSpectator ? 'Joined room as spectator:' : 'Joined room:', roomCode);
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to join room';
