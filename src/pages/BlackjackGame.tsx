@@ -4,6 +4,7 @@ import { GameChat } from "@/components/game/GameChat";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { useGameHistory } from "@/hooks/useGameHistory";
+import { usePlayerProfile } from "@/hooks/usePlayerProfile";
 import { BlackjackGameState, BlackjackAction } from "@/lib/blackjack/blackjackTypes";
 import { placeBet, startDealing, playerAction, startNewRound } from "@/lib/blackjack/blackjackEngine";
 import BlackjackTable from "@/components/blackjack/BlackjackTable";
@@ -19,6 +20,7 @@ const BlackjackGame = () => {
   const [gameState, setGameState] = useState<BlackjackGameState | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const { recordGame } = useGameHistory();
+  const { profile } = usePlayerProfile(playerId);
   const recordedRef = useRef(false);
 
   useEffect(() => {
@@ -98,6 +100,7 @@ const BlackjackGame = () => {
           onStartRound={isSpectator ? () => {} : () => updateGameState(startDealing(gameState))}
           onNewRound={isSpectator ? () => {} : () => updateGameState(startNewRound(gameState))}
           isSpectator={isSpectator}
+          tableFelt={profile?.table_felt}
         />
       </div>
       {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}
