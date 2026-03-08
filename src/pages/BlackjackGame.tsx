@@ -104,7 +104,7 @@ const BlackjackGame = () => {
             <span>👁️ Spectator Mode</span>
           </div>
         )}
-        <BlackjackTable
+         <BlackjackTable
           gameState={gameState}
           localPlayerId={playerId}
           onAction={isSpectator ? () => {} : handleAction}
@@ -114,6 +114,7 @@ const BlackjackGame = () => {
           isSpectator={isSpectator}
           tableFelt={profile?.table_felt}
           cardBack={(profile as any)?.card_back}
+          chipStyle={(profile as any)?.chip_style}
         />
       </div>
       {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}

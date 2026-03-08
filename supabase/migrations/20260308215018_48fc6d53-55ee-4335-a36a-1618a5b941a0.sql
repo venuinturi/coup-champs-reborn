@@ -1,0 +1,1 @@
+ALTER TABLE public.player_profiles ADD COLUMN chip_style text NOT NULL DEFAULT 'classic';
