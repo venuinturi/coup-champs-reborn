@@ -36,6 +36,8 @@ export const RummyTable = ({
   const [showShake, setShowShake] = useState(false);
   const prevPhaseRef = useRef(gameState.phase);
   const prevHasDrawn = useRef(gameState.hasDrawn);
+  const playerIds = useMemo(() => gameState.players.map(p => p.id), [gameState.players]);
+  const profiles = usePlayersProfiles(playerIds);
   
   const localPlayer = gameState.players.find(p => p.id === localPlayerId);
   const availableActions = getAvailableActions(gameState, localPlayerId);
@@ -244,7 +246,14 @@ export const RummyTable = ({
               player.isTurn && "ring-2 ring-primary"
             )}
           >
-            <div className="text-sm font-medium text-foreground">{player.name}</div>
+            <div className="text-sm font-medium text-foreground flex items-center justify-center gap-1.5">
+              <PlayerAvatar
+                preset={profiles.get(player.id)?.avatar_preset}
+                customUrl={profiles.get(player.id)?.avatar_url}
+                size="sm"
+              />
+              {player.name}
+            </div>
             <div className="text-xs text-muted-foreground">{player.cards.length} cards</div>
             {player.hasDropped && (
               <div className="text-xs text-destructive">Dropped ({player.points} pts)</div>
