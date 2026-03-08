@@ -294,7 +294,12 @@ export const RummyTable = ({
       {localPlayer && (
         <div className="bg-black/40 backdrop-blur-sm rounded-lg p-4">
           <div className="flex justify-between items-center mb-3">
-            <div className="text-sm font-medium text-foreground">
+            <div className="text-sm font-medium text-foreground flex items-center gap-2">
+              <PlayerAvatar
+                preset={profiles.get(localPlayerId)?.avatar_preset}
+                customUrl={profiles.get(localPlayerId)?.avatar_url}
+                size="sm"
+              />
               Your Cards ({remainingCards.length})
             </div>
             <div className="text-sm text-muted-foreground">
