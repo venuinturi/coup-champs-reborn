@@ -42,6 +42,9 @@ const Leaderboard = () => {
     load();
   }, [selectedGame, fetchLeaderboard]);
 
+  const leaderboardPlayerIds = useMemo(() => leaderboard.map(e => e.player_id), [leaderboard]);
+  const profiles = usePlayersProfiles(leaderboardPlayerIds);
+
   useEffect(() => {
     if (playerId) {
       fetchPlayerStats(playerId).then(setPlayerStats);
