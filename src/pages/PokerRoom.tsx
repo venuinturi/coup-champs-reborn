@@ -45,6 +45,9 @@ const PokerRoom = () => {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const playerIds = useMemo(() => players.map(p => p.player_id), [players]);
+  const profiles = usePlayersProfiles(playerIds);
+
   const isHost = room?.host_id === playerId;
   const currentPlayer = players.find(p => p.player_id === playerId);
   const allReady = players.length >= 2 && players.every(p => p.is_ready);
