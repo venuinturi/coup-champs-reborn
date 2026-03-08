@@ -101,6 +101,7 @@ const BlackjackGame = () => {
           onNewRound={isSpectator ? () => {} : () => updateGameState(startNewRound(gameState))}
           isSpectator={isSpectator}
           tableFelt={profile?.table_felt}
+          cardBack={(profile as any)?.card_back}
         />
       </div>
       {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}

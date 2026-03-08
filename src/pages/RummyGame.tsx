@@ -84,6 +84,7 @@ const RummyGame = () => {
           onDeclare={isSpectator ? () => {} : (melds: Meld[]) => updateGameState(declareGame(gameState, playerId, melds))}
           isSpectator={isSpectator}
           tableFelt={profile?.table_felt}
+          cardBack={(profile as any)?.card_back}
         />
       </div>
       {roomId && <GameChat roomId={roomId} playerId={playerId} playerName={playerName} />}
