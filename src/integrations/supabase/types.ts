@@ -94,6 +94,7 @@ export type Database = {
           player_id: string
           player_name: string
           reduced_motion: boolean
+          table_felt: string
           theme_preference: string
           updated_at: string
         }
@@ -107,6 +108,7 @@ export type Database = {
           player_id: string
           player_name?: string
           reduced_motion?: boolean
+          table_felt?: string
           theme_preference?: string
           updated_at?: string
         }
@@ -120,6 +122,7 @@ export type Database = {
           player_id?: string
           player_name?: string
           reduced_motion?: boolean
+          table_felt?: string
           theme_preference?: string
           updated_at?: string
         }

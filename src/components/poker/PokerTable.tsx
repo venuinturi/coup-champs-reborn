@@ -10,15 +10,18 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { sounds } from "@/lib/sounds";
 import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
+import { useTableFelt } from "@/hooks/useTableFelt";
 
 interface PokerTableProps {
   gameState: PokerGameState;
   localPlayerId: string;
   onAction: (action: PokerAction, amount?: number) => void;
   isSpectator?: boolean;
+  tableFelt?: string;
 }
 
-export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = false }: PokerTableProps) => {
+export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = false, tableFelt }: PokerTableProps) => {
+  const { felt, feltStyle, patternStyle } = useTableFelt(tableFelt);
   const [raiseAmount, setRaiseAmount] = useState<number>(gameState.bigBlind * 2);
   const prevPhaseRef = useRef(gameState.phase);
   const prevTurnRef = useRef<string | null>(null);
@@ -100,17 +103,12 @@ export const PokerTable = ({ gameState, localPlayerId, onAction, isSpectator = f
   }
 
   return (
-    <div className="relative w-full h-full min-h-[600px] bg-gradient-to-br from-green-900 to-green-800 rounded-[100px] border-8 border-amber-800 shadow-2xl overflow-hidden">
+    <div className="relative w-full h-full min-h-[600px] rounded-[100px] border-8 border-amber-800 shadow-2xl overflow-hidden" style={feltStyle}>
       <SoundToggle />
       <Confetti active={gameState.winner === localPlayerId} />
 
       {/* Table felt pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="w-full h-full" style={{
-          backgroundImage: 'radial-gradient(circle, transparent 20%, rgba(0,0,0,0.3) 20%)',
-          backgroundSize: '10px 10px'
-        }} />
-      </div>
+      <div className="absolute inset-0 opacity-30" style={patternStyle} />
 
       {/* Pot display */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 text-center">

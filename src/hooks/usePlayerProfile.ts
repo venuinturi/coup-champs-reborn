@@ -10,6 +10,7 @@ export interface PlayerProfile {
   accent_color: string | null;
   font_size: string;
   reduced_motion: boolean;
+  table_felt: string;
 }
 
 // Predefined accent color options (HSL format)
@@ -179,6 +180,17 @@ export const usePlayerProfile = (playerId: string | null) => {
     if (data) setProfile(data as PlayerProfile);
   }, [playerId]);
 
+  const updateTableFelt = useCallback(async (tableFelt: string) => {
+    if (!playerId) return;
+    const { data } = await supabase
+      .from('player_profiles')
+      .update({ table_felt: tableFelt })
+      .eq('player_id', playerId)
+      .select()
+      .single();
+    if (data) setProfile(data as PlayerProfile);
+  }, [playerId]);
+
   const uploadAvatar = useCallback(async (file: File) => {
     if (!playerId) return null;
 
@@ -204,7 +216,7 @@ export const usePlayerProfile = (playerId: string | null) => {
     return url;
   }, [playerId, updateAvatar]);
 
-  return { profile, loading, ensureProfile, updateAvatar, uploadAvatar, updateTheme, updateAccentColor, updateFontSize, updateReducedMotion };
+  return { profile, loading, ensureProfile, updateAvatar, uploadAvatar, updateTheme, updateAccentColor, updateFontSize, updateReducedMotion, updateTableFelt };
 };
 
 // Hook to fetch multiple profiles at once (for rooms/games)

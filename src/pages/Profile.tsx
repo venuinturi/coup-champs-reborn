@@ -7,6 +7,7 @@ import PlayerAvatar from "@/components/PlayerAvatar";
 import AvatarPicker from "@/components/AvatarPicker";
 import AccentColorPicker from "@/components/AccentColorPicker";
 import AccessibilitySettings from "@/components/AccessibilitySettings";
+import TableFeltPicker from "@/components/TableFeltPicker";
 import type { FontSize } from "@/hooks/useAccessibilitySettings";
 import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
@@ -93,7 +94,7 @@ const Section = ({
 const Profile = () => {
   const navigate = useNavigate();
   const { playerId, loading: authLoading } = usePlayerAuth();
-  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar, updateAccentColor, updateFontSize, updateReducedMotion } = usePlayerProfile(playerId);
+  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar, updateAccentColor, updateFontSize, updateReducedMotion, updateTableFelt } = usePlayerProfile(playerId);
   const { fetchPlayerStats } = useGameHistory();
 
   const [stats, setStats] = useState<{
@@ -161,6 +162,11 @@ const Profile = () => {
 
   const handleReducedMotionChange = async (enabled: boolean) => {
     await updateReducedMotion(enabled);
+    sounds.buttonClick();
+  };
+
+  const handleTableFeltChange = async (feltId: string) => {
+    await updateTableFelt(feltId);
     sounds.buttonClick();
   };
 
@@ -305,6 +311,13 @@ const Profile = () => {
             <AccentColorPicker
               currentAccent={profile?.accent_color ?? null}
               onSelectAccent={handleSelectAccent}
+            />
+          </Section>
+
+          <Section icon={Layers} title="Table Felt" defaultOpen={false} accentHex={currentAccentHex}>
+            <TableFeltPicker
+              currentFelt={profile?.table_felt || 'classic-green'}
+              onSelectFelt={handleTableFeltChange}
             />
           </Section>
 

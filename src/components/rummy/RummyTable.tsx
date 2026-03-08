@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { sounds } from "@/lib/sounds";
 import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
+import { useTableFelt } from "@/hooks/useTableFelt";
 
 interface RummyTableProps {
   gameState: RummyGameState;
@@ -20,6 +21,7 @@ interface RummyTableProps {
   onDrop: () => void;
   onDeclare: (melds: Meld[]) => void;
   isSpectator?: boolean;
+  tableFelt?: string;
 }
 
 export const RummyTable = ({
@@ -31,7 +33,9 @@ export const RummyTable = ({
   onDiscard,
   onDeclare,
   isSpectator = false,
+  tableFelt,
 }: RummyTableProps) => {
+  const { feltStyle, patternStyle } = useTableFelt(tableFelt);
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [melds, setMelds] = useState<Meld[]>([]);
   const [isArranging, setIsArranging] = useState(false);
@@ -166,9 +170,10 @@ export const RummyTable = ({
 
   return (
     <div className={cn(
-      "relative w-full min-h-[700px] bg-gradient-to-br from-emerald-900 to-teal-800 rounded-3xl border-8 border-amber-800 shadow-2xl p-6",
+      "relative w-full min-h-[700px] rounded-3xl border-8 border-amber-800 shadow-2xl p-6",
       showShake && "animate-shake"
-    )}>
+    )} style={feltStyle}>
+      <div className="absolute inset-0 rounded-3xl opacity-30" style={patternStyle} />
       <SoundToggle />
       <Confetti active={isWinner} />
       {/* Game message */}

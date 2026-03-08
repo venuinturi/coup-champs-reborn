@@ -1,0 +1,1 @@
+ALTER TABLE public.player_profiles ADD COLUMN table_felt text NOT NULL DEFAULT 'classic-green';

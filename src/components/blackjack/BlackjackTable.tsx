@@ -10,6 +10,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { sounds } from "@/lib/sounds";
 import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
+import { useTableFelt } from "@/hooks/useTableFelt";
 
 interface BlackjackTableProps {
   gameState: BlackjackGameState;
@@ -19,6 +20,7 @@ interface BlackjackTableProps {
   onStartRound: () => void;
   onNewRound: () => void;
   isSpectator?: boolean;
+  tableFelt?: string;
 }
 
 export const BlackjackTable = ({
@@ -29,7 +31,9 @@ export const BlackjackTable = ({
   onStartRound,
   onNewRound,
   isSpectator = false,
+  tableFelt,
 }: BlackjackTableProps) => {
+  const { feltStyle, patternStyle } = useTableFelt(tableFelt);
   const [betAmount, setBetAmount] = useState<number>(gameState.minBet);
   const prevPhaseRef = useRef(gameState.phase);
   const [showShake, setShowShake] = useState(false);
@@ -90,9 +94,11 @@ export const BlackjackTable = ({
 
   return (
     <div className={cn(
-      "relative w-full min-h-[600px] bg-gradient-to-br from-green-900 to-green-800 rounded-3xl border-8 border-amber-800 shadow-2xl p-8",
+      "relative w-full min-h-[600px] rounded-3xl border-8 border-amber-800 shadow-2xl p-8",
       showShake && "animate-shake"
-    )}>
+    )} style={feltStyle}>
+      {/* Felt pattern overlay */}
+      <div className="absolute inset-0 rounded-3xl opacity-30" style={patternStyle} />
       <SoundToggle />
       <Confetti active={isWinner && gameState.phase === 'results'} />
       {/* Dealer section */}
