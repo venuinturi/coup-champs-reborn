@@ -334,6 +334,7 @@ const Profile = () => {
             />
           </Section>
 
+          <Section icon={Settings2} title="Accessibility" defaultOpen={false} accentHex={currentAccentHex}>
             <AccessibilitySettings
               fontSize={(profile?.font_size as FontSize) || 'medium'}
               reducedMotion={profile?.reduced_motion ?? false}
