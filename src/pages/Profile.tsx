@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
-import { usePlayerProfile, AVATAR_PRESETS } from "@/hooks/usePlayerProfile";
+import { usePlayerProfile, AVATAR_PRESETS, ACCENT_COLORS } from "@/hooks/usePlayerProfile";
 import { useGameHistory, GameHistoryEntry } from "@/hooks/useGameHistory";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import AvatarPicker from "@/components/AvatarPicker";
+import AccentColorPicker from "@/components/AccentColorPicker";
 import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Trophy, Target, Coins, TrendingUp,
   Gamepad2, Calendar, Crown, Pencil, Check, X,
-  Spade, Circle, Layers,
+  Spade, Circle, Layers, Palette,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -40,7 +41,7 @@ const resultColors: Record<string, string> = {
 const Profile = () => {
   const navigate = useNavigate();
   const { playerId, loading: authLoading } = usePlayerAuth();
-  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar } = usePlayerProfile(playerId);
+  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar, updateAccentColor } = usePlayerProfile(playerId);
   const { fetchPlayerStats } = useGameHistory();
 
   const [stats, setStats] = useState<{
@@ -96,6 +97,11 @@ const Profile = () => {
     setUploading(true);
     await uploadAvatar(file);
     setUploading(false);
+  };
+
+  const handleSelectAccent = async (accentHsl: string | null) => {
+    await updateAccentColor(accentHsl);
+    sounds.buttonClick();
   };
 
   const loading = authLoading || profileLoading;
@@ -197,6 +203,18 @@ const Profile = () => {
             onUpload={handleUpload}
             uploading={uploading}
           />
+
+          {/* Accent Color Picker */}
+          <div className="mt-6 pt-6 border-t border-border/50">
+            <div className="flex items-center gap-2 mb-3">
+              <Palette className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-muted-foreground">Customize Theme</span>
+            </div>
+            <AccentColorPicker
+              currentAccent={profile?.accent_color ?? null}
+              onSelectAccent={handleSelectAccent}
+            />
+          </div>
         </div>
 
         {/* Stats Grid */}

@@ -1,0 +1,1 @@
+ALTER TABLE public.player_profiles ADD COLUMN accent_color text DEFAULT NULL;

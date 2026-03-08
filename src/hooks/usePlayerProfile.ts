@@ -7,7 +7,20 @@ export interface PlayerProfile {
   avatar_url: string | null;
   avatar_preset: string;
   theme_preference: 'light' | 'dark';
+  accent_color: string | null;
 }
+
+// Predefined accent color options (HSL format)
+export const ACCENT_COLORS: { name: string; hsl: string; preview: string }[] = [
+  { name: 'Gold', hsl: '45 100% 50%', preview: '#FFD700' },
+  { name: 'Rose', hsl: '340 82% 52%', preview: '#E91E63' },
+  { name: 'Violet', hsl: '270 70% 55%', preview: '#9C27B0' },
+  { name: 'Cyan', hsl: '180 70% 45%', preview: '#00BCD4' },
+  { name: 'Emerald', hsl: '152 60% 42%', preview: '#22C55E' },
+  { name: 'Orange', hsl: '25 95% 53%', preview: '#FF6D00' },
+  { name: 'Blue', hsl: '217 91% 60%', preview: '#3B82F6' },
+  { name: 'Crimson', hsl: '0 72% 51%', preview: '#DC2626' },
+];
 
 // Preset avatar configurations - emoji-based for simplicity
 export const AVATAR_PRESETS: Record<string, { emoji: string; bg: string }> = {
@@ -127,6 +140,21 @@ export const usePlayerProfile = (playerId: string | null) => {
     }
   }, [playerId]);
 
+  const updateAccentColor = useCallback(async (accentColor: string | null) => {
+    if (!playerId) return;
+
+    const { data, error } = await supabase
+      .from('player_profiles')
+      .update({ accent_color: accentColor })
+      .eq('player_id', playerId)
+      .select()
+      .single();
+
+    if (data) {
+      setProfile(data as PlayerProfile);
+    }
+  }, [playerId]);
+
   const uploadAvatar = useCallback(async (file: File) => {
     if (!playerId) return null;
 
@@ -152,7 +180,7 @@ export const usePlayerProfile = (playerId: string | null) => {
     return url;
   }, [playerId, updateAvatar]);
 
-  return { profile, loading, ensureProfile, updateAvatar, uploadAvatar, updateTheme };
+  return { profile, loading, ensureProfile, updateAvatar, uploadAvatar, updateTheme, updateAccentColor };
 };
 
 // Hook to fetch multiple profiles at once (for rooms/games)
