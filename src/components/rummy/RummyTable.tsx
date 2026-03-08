@@ -216,6 +216,7 @@ export const RummyTable = ({
               rank="A"
               faceUp={false}
               size="lg"
+              cardBack={cardBack}
             />
           </div>
         </div>
