@@ -21,6 +21,7 @@ interface BlackjackTableProps {
   onNewRound: () => void;
   isSpectator?: boolean;
   tableFelt?: string;
+  cardBack?: string;
 }
 
 export const BlackjackTable = ({
@@ -32,6 +33,7 @@ export const BlackjackTable = ({
   onNewRound,
   isSpectator = false,
   tableFelt,
+  cardBack,
 }: BlackjackTableProps) => {
   const { feltStyle, patternStyle } = useTableFelt(tableFelt);
   const [betAmount, setBetAmount] = useState<number>(gameState.minBet);
@@ -112,6 +114,7 @@ export const BlackjackTable = ({
               rank={card.rank}
               faceUp={card.faceUp}
               size="lg"
+              cardBack={cardBack}
             />
           ))}
         </div>

@@ -22,6 +22,7 @@ interface RummyTableProps {
   onDeclare: (melds: Meld[]) => void;
   isSpectator?: boolean;
   tableFelt?: string;
+  cardBack?: string;
 }
 
 export const RummyTable = ({
@@ -34,6 +35,7 @@ export const RummyTable = ({
   onDeclare,
   isSpectator = false,
   tableFelt,
+  cardBack,
 }: RummyTableProps) => {
   const { feltStyle, patternStyle } = useTableFelt(tableFelt);
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
@@ -214,6 +216,7 @@ export const RummyTable = ({
               rank="A"
               faceUp={false}
               size="lg"
+              cardBack={cardBack}
             />
           </div>
         </div>

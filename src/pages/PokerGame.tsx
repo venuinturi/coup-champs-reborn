@@ -100,6 +100,7 @@ const PokerGame = () => {
           onAction={isSpectator ? () => {} : handleAction} 
           isSpectator={isSpectator}
           tableFelt={profile?.table_felt}
+          cardBack={(profile as any)?.card_back}
         />
         {gameState.phase === 'finished' && !isSpectator && (
           <div className="text-center mt-4">

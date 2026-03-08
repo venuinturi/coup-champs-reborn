@@ -1,0 +1,1 @@
+ALTER TABLE public.player_profiles ADD COLUMN IF NOT EXISTS card_back text NOT NULL DEFAULT 'classic';

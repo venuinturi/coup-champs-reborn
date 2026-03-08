@@ -8,6 +8,7 @@ import AvatarPicker from "@/components/AvatarPicker";
 import AccentColorPicker from "@/components/AccentColorPicker";
 import AccessibilitySettings from "@/components/AccessibilitySettings";
 import TableFeltPicker from "@/components/TableFeltPicker";
+import CardBackPicker from "@/components/CardBackPicker";
 import type { FontSize } from "@/hooks/useAccessibilitySettings";
 import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import {
   ArrowLeft, Trophy, Target, Coins, TrendingUp,
   Gamepad2, Calendar, Crown, Pencil, Check, X,
   Spade, Circle, Layers, Palette, Settings2,
-  ChevronDown, User, Brush,
+  ChevronDown, User, Brush, RectangleVertical,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -94,7 +95,7 @@ const Section = ({
 const Profile = () => {
   const navigate = useNavigate();
   const { playerId, loading: authLoading } = usePlayerAuth();
-  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar, updateAccentColor, updateFontSize, updateReducedMotion, updateTableFelt } = usePlayerProfile(playerId);
+  const { profile, loading: profileLoading, ensureProfile, updateAvatar, uploadAvatar, updateAccentColor, updateFontSize, updateReducedMotion, updateTableFelt, updateCardBack } = usePlayerProfile(playerId);
   const { fetchPlayerStats } = useGameHistory();
 
   const [stats, setStats] = useState<{
@@ -167,6 +168,11 @@ const Profile = () => {
 
   const handleTableFeltChange = async (feltId: string) => {
     await updateTableFelt(feltId);
+    sounds.buttonClick();
+  };
+
+  const handleCardBackChange = async (backId: string) => {
+    await updateCardBack(backId);
     sounds.buttonClick();
   };
 
@@ -318,6 +324,13 @@ const Profile = () => {
             <TableFeltPicker
               currentFelt={profile?.table_felt || 'classic-green'}
               onSelectFelt={handleTableFeltChange}
+            />
+          </Section>
+
+          <Section icon={RectangleVertical} title="Card Back" defaultOpen={false} accentHex={currentAccentHex}>
+            <CardBackPicker
+              currentBack={(profile as any)?.card_back || 'classic'}
+              onSelectBack={handleCardBackChange}
             />
           </Section>
 
