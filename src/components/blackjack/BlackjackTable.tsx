@@ -3,11 +3,13 @@ import { getAvailableActions } from "@/lib/blackjack/blackjackEngine";
 import PlayingCard from "@/components/cards/PlayingCard";
 import Confetti from "@/components/Confetti";
 import SoundToggle from "@/components/SoundToggle";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { sounds } from "@/lib/sounds";
+import { usePlayersProfiles } from "@/hooks/usePlayerProfile";
 
 interface BlackjackTableProps {
   gameState: BlackjackGameState;
