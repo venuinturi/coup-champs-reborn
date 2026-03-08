@@ -85,6 +85,7 @@ export type Database = {
       }
       player_profiles: {
         Row: {
+          accent_color: string | null
           avatar_preset: string | null
           avatar_url: string | null
           created_at: string
@@ -95,6 +96,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accent_color?: string | null
           avatar_preset?: string | null
           avatar_url?: string | null
           created_at?: string
@@ -105,6 +107,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accent_color?: string | null
           avatar_preset?: string | null
           avatar_url?: string | null
           created_at?: string
