@@ -123,6 +123,15 @@ export default {
           "70%": { transform: "scale(0.95)" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        "float-up": {
+          "0%": { transform: "translateY(0) scale(1)", opacity: "1" },
+          "50%": { transform: "translateY(-60px) scale(1.3)", opacity: "0.9" },
+          "100%": { transform: "translateY(-120px) scale(0.8)", opacity: "0" },
+        },
+        "scale-in": {
+          "0%": { transform: "scale(0.9)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -136,6 +145,8 @@ export default {
         "winner-glow": "winner-glow 2s ease-in-out infinite",
         "shake": "shake 0.4s ease-in-out",
         "bounce-in": "bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+        "float-up": "float-up 2s ease-out forwards",
+        "scale-in": "scale-in 0.2s ease-out forwards",
       },
     },
   },
