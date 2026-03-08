@@ -65,7 +65,7 @@ const PokerIndex = () => {
     }
   };
 
-  const handleJoinRoom = async () => {
+  const handleJoinRoom = async (asSpectator: boolean = false) => {
     if (!playerName.trim()) {
       toast({ title: "Error", description: "Please enter your name", variant: "destructive" });
       return;
@@ -77,9 +77,10 @@ const PokerIndex = () => {
 
     localStorage.setItem("playerName", playerName);
     await ensureProfile(playerName);
-    const success = await joinRoom(roomCode, playerName);
+    const success = await joinRoom(roomCode, playerName, asSpectator);
     if (success) {
-      navigate(`/poker/room/${roomCode.toUpperCase()}?name=${encodeURIComponent(playerName)}`);
+      const spectatorParam = asSpectator ? '&spectator=true' : '';
+      navigate(`/poker/room/${roomCode.toUpperCase()}?name=${encodeURIComponent(playerName)}${spectatorParam}`);
     }
   };
 
@@ -310,13 +311,22 @@ const PokerIndex = () => {
                   Back
                 </Button>
                 <Button 
-                  onClick={handleJoinRoom} 
+                  onClick={() => handleJoinRoom(false)} 
                   disabled={loading} 
                   className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-background font-semibold"
                 >
                   {loading ? "Joining..." : "Join Game"}
                 </Button>
               </div>
+              <Button 
+                variant="ghost" 
+                onClick={() => handleJoinRoom(true)} 
+                disabled={loading} 
+                className="w-full text-muted-foreground gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                Watch as Spectator
+              </Button>
             </div>
           </div>
         )}

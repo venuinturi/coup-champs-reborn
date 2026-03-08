@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Circle, Users, Plus, LogIn, Coins } from "lucide-react";
+import { ArrowLeft, Circle, Users, Plus, LogIn, Coins, Eye } from "lucide-react";
 import { useMultiplayer } from "@/hooks/useMultiplayer";
 import { usePlayerProfile } from "@/hooks/usePlayerProfile";
 import { toast } from "@/hooks/use-toast";
@@ -49,7 +49,7 @@ const BlackjackIndex = () => {
     }
   };
 
-  const handleJoinRoom = async () => {
+  const handleJoinRoom = async (asSpectator: boolean = false) => {
     if (!playerName.trim()) {
       toast({ title: "Error", description: "Please enter your name", variant: "destructive" });
       return;
@@ -61,9 +61,10 @@ const BlackjackIndex = () => {
 
     localStorage.setItem("playerName", playerName);
     await ensureProfile(playerName);
-    const success = await joinRoom(roomCode, playerName);
+    const success = await joinRoom(roomCode, playerName, asSpectator);
     if (success) {
-      navigate(`/blackjack/room/${roomCode.toUpperCase()}?name=${encodeURIComponent(playerName)}`);
+      const spectatorParam = asSpectator ? '&spectator=true' : '';
+      navigate(`/blackjack/room/${roomCode.toUpperCase()}?name=${encodeURIComponent(playerName)}${spectatorParam}`);
     }
   };
 
@@ -231,10 +232,19 @@ const BlackjackIndex = () => {
               </div>
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={() => setMode("menu")} className="flex-1 border-border/50">Back</Button>
-                <Button onClick={handleJoinRoom} disabled={loading} className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-background font-semibold">
+                <Button onClick={() => handleJoinRoom(false)} disabled={loading} className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-background font-semibold">
                   {loading ? "Joining..." : "Join Table"}
                 </Button>
               </div>
+              <Button 
+                variant="ghost" 
+                onClick={() => handleJoinRoom(true)} 
+                disabled={loading} 
+                className="w-full text-muted-foreground gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                Watch as Spectator
+              </Button>
             </div>
           </div>
         )}
