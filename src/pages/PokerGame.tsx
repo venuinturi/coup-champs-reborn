@@ -55,6 +55,11 @@ const PokerGame = () => {
     setGameState(newState);
     await supabase.from('game_rooms').update({ game_state: newState as any }).eq('id', roomId);
   }, [roomId]);
+  const handleAction = useCallback((action: PokerAction, amount?: number) => {
+    if (!gameState || !playerId) return;
+    const newState = processAction(gameState, playerId, action, amount);
+    updateGameState(newState);
+  }, [gameState, playerId, updateGameState]);
 
   // Record game result when a hand finishes
   useEffect(() => {
