@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useState } from "react";
 import { usePlayerAuth } from "@/hooks/usePlayerAuth";
 import { usePlayerProfile } from "@/hooks/usePlayerProfile";
+import { useAccentColor } from "@/hooks/useAccentColor";
 
 export const ThemeToggle = () => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { playerId } = usePlayerAuth();
   const { profile, updateTheme } = usePlayerProfile(playerId);
+
+  // Apply accent color from profile
+  useAccentColor(profile?.accent_color ?? null);
 
   useEffect(() => {
     setMounted(true);
