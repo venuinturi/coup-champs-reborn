@@ -103,7 +103,7 @@ export const BlackjackTable = ({
       showShake && "animate-shake"
     )} style={feltStyle}>
       {/* Felt pattern overlay */}
-      <div className="absolute inset-0 rounded-3xl opacity-30" style={patternStyle} />
+      <div className="absolute inset-0 rounded-3xl opacity-30 pointer-events-none" style={patternStyle} />
       <SoundToggle />
       <Confetti active={isWinner && gameState.phase === 'results'} />
       {/* Dealer section */}

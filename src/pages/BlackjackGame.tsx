@@ -47,14 +47,9 @@ const BlackjackGame = () => {
   }, [roomCode]);
 
   const updateGameState = useCallback(async (newState: BlackjackGameState) => {
-    if (!roomId) {
-      console.warn('updateGameState: roomId is null');
-      return;
-    }
-    console.log('updateGameState: phase =', newState.phase, 'players =', newState.players.map(p => ({ id: p.id, bet: p.currentBet })));
+    if (!roomId) return;
     setGameState(newState);
-    const { error } = await supabase.from('game_rooms').update({ game_state: newState as any }).eq('id', roomId);
-    if (error) console.error('Failed to update game state:', error);
+    await supabase.from('game_rooms').update({ game_state: newState as any }).eq('id', roomId);
   }, [roomId]);
 
   const handleAction = (action: BlackjackAction) => {
@@ -63,15 +58,8 @@ const BlackjackGame = () => {
   };
 
   const handlePlaceBet = (amount: number) => {
-    if (!gameState || !playerId) {
-      console.warn('handlePlaceBet: missing gameState or playerId', { gameState: !!gameState, playerId });
-      return;
-    }
-    console.log('handlePlaceBet: playerId =', playerId, 'amount =', amount, 'gamePlayerIds =', gameState.players.map(p => p.id));
-    const newState = placeBet(gameState, playerId, amount);
-    const changed = newState !== gameState;
-    console.log('placeBet result changed:', changed);
-    updateGameState(newState);
+    if (!gameState || !playerId) return;
+    updateGameState(placeBet(gameState, playerId, amount));
   };
 
   // Record game result when round ends
