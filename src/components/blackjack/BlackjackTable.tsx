@@ -28,8 +28,8 @@ export const BlackjackTable = ({
   onPlaceBet,
   onStartRound,
   onNewRound,
+  isSpectator = false,
 }: BlackjackTableProps) => {
-  const isSpectatorMode = isSpectator || false;
   const [betAmount, setBetAmount] = useState<number>(gameState.minBet);
   const prevPhaseRef = useRef(gameState.phase);
   const [showShake, setShowShake] = useState(false);
