@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      game_history: {
+        Row: {
+          coins_won: number | null
+          game_type: string
+          id: string
+          played_at: string
+          player_id: string
+          player_name: string
+          result: string
+          room_code: string | null
+        }
+        Insert: {
+          coins_won?: number | null
+          game_type: string
+          id?: string
+          played_at?: string
+          player_id: string
+          player_name: string
+          result: string
+          room_code?: string | null
+        }
+        Update: {
+          coins_won?: number | null
+          game_type?: string
+          id?: string
+          played_at?: string
+          player_id?: string
+          player_name?: string
+          result?: string
+          room_code?: string | null
+        }
+        Relationships: []
+      }
       game_rooms: {
         Row: {
           created_at: string
