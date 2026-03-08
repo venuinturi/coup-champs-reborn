@@ -4,6 +4,7 @@ import PlayingCard from "@/components/cards/PlayingCard";
 import Confetti from "@/components/Confetti";
 import SoundToggle from "@/components/SoundToggle";
 import PlayerAvatar from "@/components/PlayerAvatar";
+import PokerChip from "@/components/PokerChip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -22,6 +23,7 @@ interface BlackjackTableProps {
   isSpectator?: boolean;
   tableFelt?: string;
   cardBack?: string;
+  chipStyle?: string;
 }
 
 export const BlackjackTable = ({
@@ -34,6 +36,7 @@ export const BlackjackTable = ({
   isSpectator = false,
   tableFelt,
   cardBack,
+  chipStyle,
 }: BlackjackTableProps) => {
   const { feltStyle, patternStyle } = useTableFelt(tableFelt);
   const [betAmount, setBetAmount] = useState<number>(gameState.minBet);
@@ -197,7 +200,10 @@ export const BlackjackTable = ({
               </div>
               <div className="text-xs text-muted-foreground">Chips: ${player.chips}</div>
               {player.currentBet > 0 && (
-                <div className="text-xs text-primary">Bet: ${player.currentBet}</div>
+                <div className="text-xs text-primary flex items-center justify-center gap-1">
+                  <PokerChip chipStyle={chipStyle || profiles.get(player.id)?.chip_style} size="sm" />
+                  ${player.currentBet}
+                </div>
               )}
             </div>
 
