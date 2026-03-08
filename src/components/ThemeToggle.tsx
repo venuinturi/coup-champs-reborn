@@ -15,6 +15,21 @@ export const ThemeToggle = () => {
     setMounted(true);
   }, []);
 
+  // Keyboard shortcut (Ctrl+D) to toggle theme
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        handleToggle();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [theme, playerId]);
+
+  const handleToggle = async () => {
+
   // Load theme from profile on initial load
   useEffect(() => {
     if (profile?.theme_preference && mounted) {
