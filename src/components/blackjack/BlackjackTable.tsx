@@ -1,10 +1,13 @@
 import { BlackjackGameState, BlackjackAction } from "@/lib/blackjack/blackjackTypes";
 import { getAvailableActions } from "@/lib/blackjack/blackjackEngine";
 import PlayingCard from "@/components/cards/PlayingCard";
+import Confetti from "@/components/Confetti";
+import SoundToggle from "@/components/SoundToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { sounds } from "@/lib/sounds";
 
 interface BlackjackTableProps {
   gameState: BlackjackGameState;
@@ -24,10 +27,40 @@ export const BlackjackTable = ({
   onNewRound,
 }: BlackjackTableProps) => {
   const [betAmount, setBetAmount] = useState<number>(gameState.minBet);
+  const prevPhaseRef = useRef(gameState.phase);
+  const [showShake, setShowShake] = useState(false);
   
   const localPlayer = gameState.players.find(p => p.id === localPlayerId);
   const availableActions = getAvailableActions(gameState, localPlayerId);
   const isMyTurn = localPlayer?.isTurn || false;
+  const localResult = localPlayer?.result;
+  const isWinner = localResult === 'win' || localResult === 'blackjack';
+  const isLoser = localResult === 'lose';
+
+  // Sound effects on phase changes
+  useEffect(() => {
+    if (gameState.phase === 'dealing' && prevPhaseRef.current !== 'dealing') {
+      gameState.players.forEach((_, i) => {
+        setTimeout(() => sounds.cardDeal(), i * 100);
+        setTimeout(() => sounds.cardDeal(), (gameState.players.length + i) * 100);
+      });
+    }
+    if (gameState.phase === 'results' && prevPhaseRef.current !== 'results') {
+      if (isWinner) {
+        sounds.win();
+        if (localResult === 'blackjack') sounds.blackjack();
+      } else if (isLoser) {
+        sounds.lose();
+        setShowShake(true);
+        setTimeout(() => setShowShake(false), 500);
+      } else if (localPlayer?.isBusted) {
+        sounds.bust();
+        setShowShake(true);
+        setTimeout(() => setShowShake(false), 500);
+      }
+    }
+    prevPhaseRef.current = gameState.phase;
+  }, [gameState.phase, isWinner, isLoser, localResult, localPlayer?.isBusted, gameState.players]);
 
   const handlePlaceBet = () => {
     if (betAmount >= gameState.minBet && betAmount <= Math.min(gameState.maxBet, localPlayer?.chips || 0)) {
@@ -50,7 +83,12 @@ export const BlackjackTable = ({
   };
 
   return (
-    <div className="relative w-full min-h-[600px] bg-gradient-to-br from-green-900 to-green-800 rounded-3xl border-8 border-amber-800 shadow-2xl p-8">
+    <div className={cn(
+      "relative w-full min-h-[600px] bg-gradient-to-br from-green-900 to-green-800 rounded-3xl border-8 border-amber-800 shadow-2xl p-8",
+      showShake && "animate-shake"
+    )}>
+      <SoundToggle />
+      <Confetti active={isWinner && gameState.phase === 'results'} />
       {/* Dealer section */}
       <div className="text-center mb-8">
         <h3 className="text-lg font-medium text-white/80 mb-3">Dealer</h3>
@@ -187,8 +225,22 @@ export const BlackjackTable = ({
 
       {/* New round button */}
       {gameState.phase === 'results' && (
-        <div className="text-center">
-          <Button size="lg" onClick={onNewRound}>
+        <div className="text-center space-y-4">
+          {isWinner && (
+            <div className="animate-bounce-in">
+              <h2 className="text-3xl font-display font-bold text-primary shimmer-text mb-2">
+                {localResult === 'blackjack' ? '🃏 BLACKJACK!' : '🎉 You Win!'}
+              </h2>
+            </div>
+          )}
+          {isLoser && (
+            <div className="animate-fade-in">
+              <h2 className="text-2xl font-display font-bold text-destructive mb-2">
+                Better luck next time
+              </h2>
+            </div>
+          )}
+          <Button size="lg" onClick={onNewRound} className="animate-fade-in">
             New Round
           </Button>
         </div>
