@@ -18,6 +18,7 @@ import BlackjackGame from "./pages/BlackjackGame";
 import RummyRoom from "./pages/RummyRoom";
 import RummyGame from "./pages/RummyGame";
 import TestPage from "./pages/TestPage";
+import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,8 @@ const App = () => (
           <Route path="/rummy" element={<RummyIndex />} />
           <Route path="/rummy/room/:roomCode" element={<RummyRoom />} />
           <Route path="/rummy/game/:roomCode" element={<RummyGame />} />
+          {/* Leaderboard */}
+          <Route path="/leaderboard" element={<Leaderboard />} />
           {/* Legacy routes */}
           <Route path="/game" element={<Game />} />
           <Route path="/room/:roomCode" element={<Room />} />

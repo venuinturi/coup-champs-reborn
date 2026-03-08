@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Crown, Spade, Circle, Layers, Sparkles, Zap } from "lucide-react";
+import { Crown, Spade, Circle, Layers, Sparkles, Zap, Trophy } from "lucide-react";
 import SoundToggle from "@/components/SoundToggle";
 import { sounds } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
@@ -189,8 +189,28 @@ const Index = () => {
           ))}
         </div>
 
+        {/* Leaderboard Button */}
+        <div className="mt-12 animate-fade-in" style={{ animationDelay: "0.5s", animationFillMode: 'both' }}>
+          <div
+            className="group glass-card border border-amber-500/20 hover:border-amber-500/40 rounded-2xl p-5 cursor-pointer transition-all duration-400 game-card-glow max-w-md mx-auto"
+            style={{ '--glow-color': '45 100% 50%' } as React.CSSProperties}
+            onClick={() => { sounds.buttonClick(); navigate('/leaderboard'); }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <Trophy className="w-6 h-6 text-background" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Leaderboard</h3>
+                <p className="text-sm text-muted-foreground">View rankings & stats</p>
+              </div>
+              <Zap className="w-5 h-5 text-primary ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </div>
+          </div>
+        </div>
+
         {/* Footer */}
-        <div className="mt-20 text-center animate-fade-in" style={{ animationDelay: "0.6s" }}>
+        <div className="mt-12 text-center animate-fade-in" style={{ animationDelay: "0.6s" }}>
           <div className="separator-diamond text-muted-foreground/30 max-w-xs mx-auto mb-4">
             <span className="text-muted-foreground/40 text-xs">◆</span>
           </div>
