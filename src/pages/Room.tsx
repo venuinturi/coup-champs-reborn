@@ -7,7 +7,7 @@ import { usePlayersProfiles } from '@/hooks/usePlayerProfile';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { createGame } from '@/lib/gameEngine';
 import { toast } from '@/hooks/use-toast';
-import { Copy, Crown, Users, Check, ArrowLeft, Play } from 'lucide-react';
+import { Copy, Crown, Users, Check, ArrowLeft, Play, Eye } from 'lucide-react';
 
 const Room = () => {
   const navigate = useNavigate();
@@ -117,7 +117,10 @@ const Room = () => {
   const isHost = room?.host_id === playerId;
   const currentPlayer = players.find(p => p.player_id === playerId);
   const isReady = currentPlayer?.is_ready ?? false;
-  const allReady = players.every(p => p.is_ready);
+  const isSpectator = (currentPlayer as any)?.is_spectator ?? false;
+  const activePlayers = players.filter((p: any) => !p.is_spectator);
+  const spectators = players.filter((p: any) => p.is_spectator);
+  const allReady = activePlayers.every(p => p.is_ready);
   const playerIds = useMemo(() => players.map(p => p.player_id), [players]);
   const profiles = usePlayersProfiles(playerIds);
 
@@ -164,12 +167,12 @@ const Room = () => {
           <div className="flex items-center gap-2 mb-4">
             <Users className="w-5 h-5 text-primary" />
             <h3 className="font-display text-lg text-foreground">
-              Players ({players.length}/6)
+              Players ({activePlayers.length}/6)
             </h3>
           </div>
 
           <div className="space-y-3">
-            {players.map((player) => (
+            {activePlayers.map((player) => (
               <PlayerRow
                 key={player.id}
                 player={player}
@@ -178,7 +181,7 @@ const Room = () => {
               />
             ))}
 
-            {players.length < 6 && (
+            {activePlayers.length < 6 && (
               <div className="flex items-center gap-3 py-2 px-3 rounded-lg border border-dashed border-border">
                 <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
                   <Users className="w-5 h-5 text-muted-foreground" />
@@ -187,20 +190,51 @@ const Room = () => {
               </div>
             )}
           </div>
+
+          {/* Spectators */}
+          {spectators.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-border/50">
+              <div className="flex items-center gap-2 text-muted-foreground mb-3">
+                <Eye className="w-4 h-4" />
+                <span className="text-sm">Spectators ({spectators.length})</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {spectators.map((spec: any) => (
+                  <div key={spec.id} className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-full text-sm">
+                    <PlayerAvatar
+                      preset={profiles.get(spec.player_id)?.avatar_preset}
+                      customUrl={profiles.get(spec.player_id)?.avatar_url}
+                      size="sm"
+                    />
+                    <span className="text-muted-foreground">{spec.player_name}</span>
+                    {spec.player_id === playerId && <span className="text-xs text-primary">(You)</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="space-y-3">
-          {isHost ? (
+          {isSpectator ? (
+            <div className="text-center py-4">
+              <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
+                <Eye className="w-5 h-5" />
+                <span>You're watching as a spectator</span>
+              </div>
+              <p className="text-sm text-muted-foreground">Waiting for the game to start...</p>
+            </div>
+          ) : isHost ? (
             <Button
               variant="gold"
               size="lg"
               className="w-full"
               onClick={handleStartGame}
-              disabled={players.length < 2 || !allReady}
+              disabled={activePlayers.length < 2 || !allReady}
             >
               <Play className="w-5 h-5 mr-2" />
-              {players.length < 2
+              {activePlayers.length < 2
                 ? 'Need 2+ Players'
                 : !allReady
                 ? 'Waiting for Ready'
