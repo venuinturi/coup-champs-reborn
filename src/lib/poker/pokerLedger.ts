@@ -54,6 +54,7 @@ export interface PokerLedgerSession {
   defaultBuyIn: number; // chips per buy-in (default: 400)
   players: LedgerPlayer[];
   completedTransactionIds: string[];
+  isEnded?: boolean;
 }
 
 export interface SettlementResult {
@@ -112,6 +113,7 @@ export const DEFAULT_AVATARS = [
 
 export const createNewPlayer = (name: string, initialBuyIn: number = DEFAULT_BUY_IN, avatarIndex: number = 0): LedgerPlayer => {
   const avatar = DEFAULT_AVATARS[avatarIndex % DEFAULT_AVATARS.length];
+  const buyIn = initialBuyIn && initialBuyIn !== 1000 ? initialBuyIn : DEFAULT_BUY_IN;
   return {
     id: `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     name: name.trim(),
@@ -119,7 +121,7 @@ export const createNewPlayer = (name: string, initialBuyIn: number = DEFAULT_BUY
     buyIns: [
       {
         id: `bi_${Date.now()}_0`,
-        amount: initialBuyIn,
+        amount: buyIn,
         timestamp: Date.now(),
         note: "Initial Buy-in",
       },
@@ -349,27 +351,62 @@ export const formatSettlementReceipt = (
   return lines.join("\n");
 };
 
-// Storage keys
-const STORAGE_CURRENT_SESSION = "coup_champs_poker_current_ledger";
+// Storage keys - bumped to v4 to ensure clean slate with zero past/default players
+const STORAGE_CURRENT_SESSION = "coup_champs_poker_active_table_v4";
 const STORAGE_SESSION_HISTORY = "coup_champs_poker_ledger_history";
+
+export const clearActiveSession = (): void => {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      localStorage.removeItem(STORAGE_CURRENT_SESSION);
+      localStorage.removeItem("coup_champs_poker_current_ledger");
+      localStorage.removeItem("coup_champs_poker_current_ledger_v2");
+      localStorage.removeItem("coup_champs_poker_current_ledger_v3");
+    }
+  } catch (e) {
+    console.error("Failed to clear current poker session", e);
+  }
+};
 
 export const loadCurrentSession = (): PokerLedgerSession => {
   try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      // Purge any stale legacy keys immediately
+      localStorage.removeItem("coup_champs_poker_current_ledger");
+      localStorage.removeItem("coup_champs_poker_current_ledger_v2");
+      localStorage.removeItem("coup_champs_poker_current_ledger_v3");
+    }
+
     const raw = localStorage.getItem(STORAGE_CURRENT_SESSION);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.players)) {
-        // If stored session had the hardcoded placeholder players ("Alex", "Sam", "Jordan", "Taylor"), clear them!
-        const dummyNames = new Set(["Alex", "Sam", "Jordan", "Taylor"]);
-        const hasOnlyDummy =
-          parsed.players.length === 4 &&
-          parsed.players.every((p: any) => dummyNames.has(p.name));
-
-        if (hasOnlyDummy) {
-          parsed.players = [];
+        // If the session was finished/ended, do NOT restore past players to active table!
+        if (parsed.isEnded) {
+          clearActiveSession();
+          return createDefaultSession();
         }
 
-        parsed.defaultBuyIn = parsed.defaultBuyIn || DEFAULT_BUY_IN;
+        // Filter out any dummy placeholder names
+        const bannedNames = new Set(["alex", "sam", "jordan", "taylor", "player 1", "player 2", "player 3", "player 4"]);
+        parsed.players = parsed.players.filter(
+          (p: any) => p && p.name && !bannedNames.has(String(p.name).trim().toLowerCase())
+        );
+
+        // Normalize defaultBuyIn to 400 (if empty or stale 1000)
+        if (!parsed.defaultBuyIn || parsed.defaultBuyIn === 1000) {
+          parsed.defaultBuyIn = DEFAULT_BUY_IN;
+        }
+
+        // Normalize any player buyIns that were stored with stale 1000
+        parsed.players = parsed.players.map((p: any) => ({
+          ...p,
+          buyIns: (p.buyIns || []).map((b: any) => ({
+            ...b,
+            amount: b.amount === 1000 ? DEFAULT_BUY_IN : b.amount,
+          })),
+        }));
+
         parsed.chipRateRupees = parsed.chipRateRupees !== undefined ? parsed.chipRateRupees : DEFAULT_CHIP_RATE_RUPEES;
         parsed.currency = "chips";
         return parsed;
@@ -383,6 +420,11 @@ export const loadCurrentSession = (): PokerLedgerSession => {
 
 export const saveCurrentSession = (session: PokerLedgerSession): void => {
   try {
+    // If the game has ended or players array is empty, wipe from active table storage
+    if (session.isEnded || session.players.length === 0) {
+      clearActiveSession();
+      return;
+    }
     localStorage.setItem(
       STORAGE_CURRENT_SESSION,
       JSON.stringify({ ...session, updatedAt: Date.now() })
@@ -409,7 +451,7 @@ export const saveSessionToHistory = (session: PokerLedgerSession): PokerLedgerSe
   try {
     const history = loadSessionHistory();
     const existingIndex = history.findIndex((s) => s.id === session.id);
-    const sessionToSave = { ...session, updatedAt: Date.now() };
+    const sessionToSave = { ...session, isEnded: true, updatedAt: Date.now() };
 
     let updatedHistory: PokerLedgerSession[];
     if (existingIndex >= 0) {
