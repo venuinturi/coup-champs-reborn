@@ -18,7 +18,7 @@ const PokerIndex = () => {
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [maxPlayers, setMaxPlayers] = useState("6");
-  const [startingChips, setStartingChips] = useState("1000");
+  const [startingChips, setStartingChips] = useState("400");
   const [blinds, setBlinds] = useState("10/20");
   const [mode, setMode] = useState<"menu" | "create" | "join">("menu");
   
@@ -250,6 +250,7 @@ const PokerIndex = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="400">400 chips</SelectItem>
                       <SelectItem value="500">500 chips</SelectItem>
                       <SelectItem value="1000">1,000 chips</SelectItem>
                       <SelectItem value="5000">5,000 chips</SelectItem>
