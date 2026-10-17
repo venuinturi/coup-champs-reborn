@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Spade, Users, Plus, LogIn, Coins, Eye } from "lucide-react";
+import { ArrowLeft, Spade, Users, Plus, LogIn, Coins, Eye, Receipt, Sparkles } from "lucide-react";
 import { useMultiplayer } from "@/hooks/useMultiplayer";
 import { usePlayerProfile } from "@/hooks/usePlayerProfile";
 import { toast } from "@/hooks/use-toast";
@@ -155,6 +155,26 @@ const PokerIndex = () => {
                 <div className="flex-1">
                   <h3 className="font-semibold text-foreground">Join Game</h3>
                   <p className="text-sm text-muted-foreground">Enter a room code</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="group glass-card rounded-xl cursor-pointer transition-all duration-300 hover:border-amber-500/40 game-card-glow relative overflow-hidden"
+              style={{ '--glow-color': '45 100% 50%' } as React.CSSProperties}
+              onClick={() => navigate("/poker/ledger")}
+            >
+              <div className="absolute top-2.5 right-3 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-semibold border border-amber-500/30 flex items-center gap-1">
+                <Sparkles className="w-2.5 h-2.5" />
+                New Module
+              </div>
+              <div className="flex items-center gap-4 p-5">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <Receipt className="w-5 h-5 text-background" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-foreground">Home Game Ledger & Scoring</h3>
+                  <p className="text-sm text-muted-foreground">Manual buy-ins, chip counts & who pays whom</p>
                 </div>
               </div>
             </div>
