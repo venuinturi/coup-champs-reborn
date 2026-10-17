@@ -250,10 +250,10 @@ const PokerIndex = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="500">$500</SelectItem>
-                      <SelectItem value="1000">$1,000</SelectItem>
-                      <SelectItem value="5000">$5,000</SelectItem>
-                      <SelectItem value="10000">$10,000</SelectItem>
+                      <SelectItem value="500">500 chips</SelectItem>
+                      <SelectItem value="1000">1,000 chips</SelectItem>
+                      <SelectItem value="5000">5,000 chips</SelectItem>
+                      <SelectItem value="10000">10,000 chips</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -269,10 +269,10 @@ const PokerIndex = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="5/10">$5 / $10</SelectItem>
-                    <SelectItem value="10/20">$10 / $20</SelectItem>
-                    <SelectItem value="25/50">$25 / $50</SelectItem>
-                    <SelectItem value="50/100">$50 / $100</SelectItem>
+                    <SelectItem value="5/10">5 / 10</SelectItem>
+                    <SelectItem value="10/20">10 / 20</SelectItem>
+                    <SelectItem value="25/50">25 / 50</SelectItem>
+                    <SelectItem value="50/100">50 / 100</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

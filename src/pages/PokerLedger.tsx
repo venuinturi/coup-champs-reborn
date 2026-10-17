@@ -55,6 +55,7 @@ import {
   createNewPlayer,
   calculateSettlement,
   formatSettlementReceipt,
+  formatChips,
   loadCurrentSession,
   saveCurrentSession,
   loadSessionHistory,
@@ -138,7 +139,7 @@ const PokerLedger = () => {
 
     sounds.chipPlace();
     triggerHaptic(25);
-    toast({ title: "Player Added", description: `${player.name} joined with ${session.currency}${buyIn}` });
+    toast({ title: "Player Added", description: `${player.name} joined with ${formatChips(buyIn, session.currency)}` });
   };
 
   // Remove player
@@ -176,7 +177,7 @@ const PokerLedger = () => {
 
     sounds.chipStack();
     triggerHaptic(30);
-    toast({ title: "Re-buy Added!", description: `+${session.currency}${amount} added to stack` });
+    toast({ title: "Re-buy Added!", description: `+${formatChips(amount, session.currency)} added to stack` });
   };
 
   // Custom re-buy submit
@@ -212,7 +213,7 @@ const PokerLedger = () => {
     setCustomRebuyAmount("");
     sounds.chipStack();
     triggerHaptic(30);
-    toast({ title: "Re-buy recorded", description: `+${session.currency}${amount} added` });
+    toast({ title: "Re-buy recorded", description: `+${formatChips(amount, session.currency)} added` });
   };
 
   // Update final chips for a player
@@ -238,7 +239,7 @@ const PokerLedger = () => {
     triggerHaptic(15);
   };
 
-  // Set busted ($0)
+  // Set busted (0 chips)
   const handleSetBusted = (playerId: string) => {
     setSession((prev) => ({
       ...prev,
@@ -265,7 +266,7 @@ const PokerLedger = () => {
     sounds.notification();
     toast({
       title: "Table Auto-Balanced",
-      description: `Adjusted each player's stack by ~${session.currency}${Math.abs(adjustmentPerPlayer)} to match pot.`,
+      description: `Adjusted each player's stack by ~${formatChips(Math.abs(adjustmentPerPlayer), session.currency)} to match pot.`,
     });
   };
 
@@ -480,8 +481,7 @@ const PokerLedger = () => {
             <div>
               <p className="text-[11px] text-muted-foreground uppercase font-medium">Total Pot</p>
               <p className="text-lg md:text-xl font-bold text-foreground">
-                {session.currency}
-                {totalPot.toLocaleString()}
+                {formatChips(totalPot, session.currency)}
               </p>
             </div>
           </div>
@@ -513,8 +513,7 @@ const PokerLedger = () => {
             <div>
               <p className="text-[11px] text-muted-foreground uppercase font-medium">Avg Buy-In</p>
               <p className="text-lg md:text-xl font-bold text-foreground">
-                {session.currency}
-                {avgBuyIn.toLocaleString()}
+                {formatChips(avgBuyIn, session.currency)}
               </p>
             </div>
           </div>
@@ -567,14 +566,14 @@ const PokerLedger = () => {
 
                 <div className="sm:col-span-3">
                   <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-muted-foreground text-xs">{session.currency}</span>
+                    <Coins className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
                     <Input
                       type="number"
-                      placeholder={`Buy-in (${session.defaultBuyIn})`}
+                      placeholder={`Buy-in (${session.defaultBuyIn} chips)`}
                       value={newPlayerBuyIn}
                       onChange={(e) => setNewPlayerBuyIn(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
-                      className="pl-8 bg-muted/40 border-border/50 text-sm"
+                      className="pl-9 bg-muted/40 border-border/50 text-sm"
                     />
                   </div>
                 </div>
@@ -645,8 +644,7 @@ const PokerLedger = () => {
                             <p className="text-xs text-muted-foreground">
                               Total Invested:{" "}
                               <span className="font-bold text-foreground">
-                                {session.currency}
-                                {totalPlayerBuyIn.toLocaleString()}
+                                {formatChips(totalPlayerBuyIn, session.currency)}
                               </span>
                             </p>
                           </div>
@@ -661,8 +659,7 @@ const PokerLedger = () => {
                             className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs gap-1 h-8"
                           >
                             <Plus className="w-3 h-3" />
-                            +{session.currency}
-                            {session.defaultBuyIn}
+                            +{formatChips(session.defaultBuyIn, session.currency)}
                           </Button>
 
                           {/* Custom Rebuy Trigger */}
@@ -736,20 +733,16 @@ const PokerLedger = () => {
                     <p className="text-xs opacity-80">
                       Total Buy-ins:{" "}
                       <span className="font-semibold">
-                        {session.currency}
-                        {settlement.totalBuyIns.toLocaleString()}
+                        {formatChips(settlement.totalBuyIns, session.currency)}
                       </span>{" "}
                       | Counted Chips:{" "}
                       <span className="font-semibold">
-                        {session.currency}
-                        {settlement.totalCashOut.toLocaleString()}
+                        {formatChips(settlement.totalCashOut, session.currency)}
                       </span>
                       {!settlement.isBalanced && (
                         <span>
                           {" "}
-                          ({settlement.discrepancy > 0 ? "+" : ""}
-                          {session.currency}
-                          {settlement.discrepancy.toLocaleString()}{" "}
+                          ({formatChips(settlement.discrepancy, session.currency, { includeSign: true })}{" "}
                           {settlement.discrepancy > 0 ? "surplus" : "missing"})
                         </span>
                       )}
@@ -796,8 +789,7 @@ const PokerLedger = () => {
                           <div>
                             <span className="font-semibold text-foreground">{player.name}</span>
                             <p className="text-xs text-muted-foreground">
-                              Invested: {session.currency}
-                              {totalPlayerBuyIn.toLocaleString()}
+                              Invested: {formatChips(totalPlayerBuyIn, session.currency)}
                             </p>
                           </div>
                         </div>
@@ -814,22 +806,20 @@ const PokerLedger = () => {
                           )}
                         >
                           {net > 0 ? <TrendingUp className="w-3 h-3" /> : net < 0 ? <TrendingDown className="w-3 h-3" /> : null}
-                          {net > 0 ? "+" : ""}
-                          {session.currency}
-                          {net.toLocaleString()}
+                          {formatChips(net, session.currency, { includeSign: true })}
                         </div>
                       </div>
 
                       {/* Input & Quick Buttons */}
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
-                          <span className="absolute left-3 top-2.5 text-muted-foreground text-xs">{session.currency}</span>
+                          <Coins className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
                           <Input
                             type="number"
                             placeholder="Final Chips"
                             value={finalVal}
                             onChange={(e) => handleFinalChipsChange(player.id, e.target.value)}
-                            className="pl-8 bg-muted/40 border-border/50 text-sm font-semibold"
+                            className="pl-9 bg-muted/40 border-border/50 text-sm font-semibold"
                           />
                         </div>
 
@@ -855,7 +845,7 @@ const PokerLedger = () => {
                           onClick={() => handleSetBusted(player.id)}
                           className="text-xs h-9 px-2 text-red-400 hover:bg-red-500/10"
                         >
-                          Bust ($0)
+                          Bust (0)
                         </Button>
                       </div>
                     </div>
@@ -893,8 +883,7 @@ const PokerLedger = () => {
                       <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400">The Shark (MVP)</span>
                       <p className="font-bold text-foreground text-base">{settlement.players[0].name}</p>
                       <p className="text-xs text-emerald-400 font-semibold">
-                        +{session.currency}
-                        {settlement.players[0].net.toLocaleString()} profit
+                        {formatChips(settlement.players[0].net, session.currency, { includeSign: true })} profit
                       </p>
                     </div>
                   </div>
@@ -905,8 +894,7 @@ const PokerLedger = () => {
               <div className="glass-card rounded-xl p-4 border border-border/50">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Session Pot</span>
                 <p className="font-bold text-foreground text-base">
-                  {session.currency}
-                  {settlement.totalBuyIns.toLocaleString()}
+                  {formatChips(settlement.totalBuyIns, session.currency)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {settlement.transactions.length} settlement {settlement.transactions.length === 1 ? "transfer" : "transfers"} needed
@@ -939,7 +927,7 @@ const PokerLedger = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
                 <div>
                   <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-red-400" />
+                    <Coins className="w-5 h-5 text-red-400" />
                     Who Pays Whom (Minimum Cash Flow)
                   </h3>
                   <p className="text-xs text-muted-foreground">
@@ -1002,8 +990,7 @@ const PokerLedger = () => {
                             tx.isCompleted ? "text-muted-foreground line-through" : "text-amber-400"
                           )}
                         >
-                          {session.currency}
-                          {tx.amount.toLocaleString()}
+                          {formatChips(tx.amount, session.currency)}
                         </span>
                         <p className="text-[10px] text-muted-foreground">{tx.isCompleted ? "Settled ✅" : "Click to mark paid"}</p>
                       </div>
@@ -1032,9 +1019,7 @@ const PokerLedger = () => {
                           {p.isWhale && <span className="text-xs">🐳</span>}
                         </div>
                         <p className="text-[11px] text-muted-foreground">
-                          Buy-in: {session.currency}
-                          {p.totalBuyIn} | Cash-out: {session.currency}
-                          {p.finalChips}
+                          Buy-in: {formatChips(p.totalBuyIn, session.currency)} | Cash-out: {formatChips(p.finalChips, session.currency)}
                         </p>
                       </div>
                     </div>
@@ -1046,9 +1031,7 @@ const PokerLedger = () => {
                           p.net > 0 ? "text-emerald-400" : p.net < 0 ? "text-red-400" : "text-muted-foreground"
                         )}
                       >
-                        {p.net > 0 ? "+" : ""}
-                        {session.currency}
-                        {p.net.toLocaleString()}
+                        {formatChips(p.net, session.currency, { includeSign: true })}
                       </span>
                       <p className="text-[10px] text-muted-foreground font-mono">
                         {p.net > 0 ? "+" : ""}
@@ -1122,8 +1105,8 @@ const PokerLedger = () => {
                       <div>
                         <h4 className="font-bold text-sm text-foreground">{hist.title}</h4>
                         <p className="text-xs text-muted-foreground">
-                          {dateStr} • {hist.players.length} Players • Total Pot: {hist.currency}
-                          {histSettlement.totalBuyIns.toLocaleString()}
+                          {dateStr} • {hist.players.length} Players • Total Pot:{" "}
+                          {formatChips(histSettlement.totalBuyIns, hist.currency)}
                         </p>
                       </div>
 
@@ -1164,7 +1147,9 @@ const PokerLedger = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <Label className="text-xs text-muted-foreground">Re-buy Amount ({session.currency})</Label>
+            <Label className="text-xs text-muted-foreground">
+              Re-buy Amount ({session.currency === "chips" ? "chips" : session.currency})
+            </Label>
             <Input
               type="number"
               value={customRebuyAmount}

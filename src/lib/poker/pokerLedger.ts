@@ -62,12 +62,29 @@ export interface SettlementResult {
 }
 
 export const CURRENCY_OPTIONS = [
-  { symbol: "$", label: "USD / Dollar ($)" },
-  { symbol: "₹", label: "INR / Rupee (₹)" },
-  { symbol: "€", label: "EUR / Euro (€)" },
-  { symbol: "£", label: "GBP / Pound (£)" },
-  { symbol: "🪙", label: "Chips (No Currency)" },
+  { symbol: "chips", label: "Chips (Standard)" },
+  { symbol: "₹", label: "INR (₹)" },
+  { symbol: "€", label: "EUR (€)" },
+  { symbol: "£", label: "GBP (£)" },
 ];
+
+export const formatChips = (
+  amount: number,
+  currency: string = "chips",
+  options: { includeSign?: boolean; showUnit?: boolean } = {}
+): string => {
+  const { includeSign = false, showUnit = true } = options;
+  const num = Math.round(amount * 100) / 100;
+  const absFormatted = Math.abs(num).toLocaleString();
+  const sign = includeSign ? (num > 0 ? "+" : num < 0 ? "-" : "") : (num < 0 ? "-" : "");
+
+  if (!currency || currency === "chips" || currency === "$" || currency === "🪙") {
+    const unit = showUnit ? " chips" : "";
+    return `${sign}${absFormatted}${unit}`;
+  }
+
+  return `${sign}${currency}${absFormatted}`;
+};
 
 export const DEFAULT_AVATARS = [
   "shark",
@@ -107,7 +124,7 @@ export const createDefaultSession = (): PokerLedgerSession => {
     title: `Poker Night ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    currency: "$",
+    currency: "chips",
     chipValue: 1,
     defaultBuyIn: initialBuyIn,
     players: [
@@ -265,20 +282,23 @@ export const formatSettlementReceipt = (
   const lines: string[] = [];
   lines.push(`🎰 *${title.toUpperCase()}* ♠️`);
   lines.push(`📅 ${dateStr}`);
-  lines.push(`💰 Total Pot: ${currency}${settlement.totalBuyIns.toLocaleString()}`);
+  lines.push(`💰 Total Pot: ${formatChips(settlement.totalBuyIns, currency)}`);
   lines.push(`━━━━━━━━━━━━━━━━━━━━━━`);
 
   lines.push(`🏆 *FINAL STANDINGS & NET:*`);
   settlement.players.forEach((p, idx) => {
     const rank = idx + 1;
-    const sign = p.net > 0 ? "+" : "";
     let badge = "";
     if (p.isShark) badge = " 🦈 Shark";
     else if (p.isWhale) badge = " 🐳 Sponsor";
     else if (p.isEven) badge = " ⚖️ Even";
 
+    const netFormatted = formatChips(p.net, currency, { includeSign: true });
+    const inFormatted = formatChips(p.totalBuyIn, currency);
+    const outFormatted = formatChips(p.finalChips, currency);
+
     lines.push(
-      `${rank}. *${p.name}*: ${sign}${currency}${p.net.toLocaleString()} (In: ${currency}${p.totalBuyIn} | Out: ${currency}${p.finalChips})${badge}`
+      `${rank}. *${p.name}*: ${netFormatted} (In: ${inFormatted} | Out: ${outFormatted})${badge}`
     );
   });
 
@@ -290,14 +310,14 @@ export const formatSettlementReceipt = (
   } else {
     settlement.transactions.forEach((tx) => {
       const check = tx.isCompleted ? "✅ [PAID]" : "⏳ [PENDING]";
-      lines.push(`${check} *${tx.fromPlayerName}* ➡️ pays *${tx.toPlayerName}*: ${currency}${tx.amount.toLocaleString()}`);
+      lines.push(`${check} *${tx.fromPlayerName}* ➡️ pays *${tx.toPlayerName}*: ${formatChips(tx.amount, currency)}`);
     });
   }
 
   if (!settlement.isBalanced) {
     lines.push(`━━━━━━━━━━━━━━━━━━━━━━`);
     lines.push(
-      `⚠️ Note: Pot discrepancy of ${currency}${Math.abs(settlement.discrepancy).toLocaleString()} (${
+      `⚠️ Note: Pot discrepancy of ${formatChips(Math.abs(settlement.discrepancy), currency)} (${
         settlement.discrepancy > 0 ? "Surplus chips" : "Missing chips"
       })`
     );
@@ -319,6 +339,9 @@ export const loadCurrentSession = (): PokerLedgerSession => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.players) && parsed.players.length > 0) {
+        if (!parsed.currency || parsed.currency === "$" || parsed.currency === "🪙") {
+          parsed.currency = "chips";
+        }
         return parsed;
       }
     }
