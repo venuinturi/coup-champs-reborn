@@ -1115,7 +1115,7 @@ const PokerLedger = () => {
                   <div className="text-3xl">🦈</div>
                   <div className="min-w-0">
                     <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400 block">Shark (Top Winner)</span>
-                    <p className="font-bold text-foreground text-base truncate">{settlement.players[0].name}</p>
+                    <p className="font-bold text-foreground text-base break-words">{settlement.players[0].name}</p>
                     <p className="text-xs text-emerald-400 font-bold">
                       +{formatRupees(settlement.players[0].netRupees)} (+{settlement.players[0].netChips} chips)
                     </p>
@@ -1183,52 +1183,81 @@ const PokerLedger = () => {
                   🎉 All players broke even or settled! No transactions required.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {settlement.transactions.map((tx) => (
                     <div
                       key={tx.id}
                       onClick={() => handleToggleTransaction(tx.id)}
                       className={cn(
-                        "rounded-xl p-3 border transition-all cursor-pointer flex items-center justify-between gap-2.5",
+                        "rounded-xl p-3 md:p-3.5 border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5",
                         tx.isCompleted
                           ? "bg-emerald-950/20 border-emerald-500/30 opacity-70"
                           : "glass-card border-border/70 hover:border-red-500/40"
                       )}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      {/* Left: Checkbox + Transfer Flow Badges */}
+                      <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
                         <input
                           type="checkbox"
                           checked={tx.isCompleted}
                           onChange={() => {}}
-                          className="rounded text-red-500 w-4 h-4 cursor-pointer shrink-0"
+                          className="rounded text-red-500 w-4 h-4 cursor-pointer shrink-0 mt-1 sm:mt-0"
                         />
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <PlayerAvatar preset={tx.fromAvatarPreset} size="sm" />
-                          <span className={cn("font-bold text-sm truncate", tx.isCompleted && "line-through text-muted-foreground")}>
-                            {tx.fromPlayerName}
-                          </span>
-                        </div>
-                        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <PlayerAvatar preset={tx.toAvatarPreset} size="sm" />
-                          <span className={cn("font-bold text-sm truncate", tx.isCompleted && "line-through text-muted-foreground")}>
-                            {tx.toPlayerName}
-                          </span>
+
+                        {/* Transfer flow badges with avatars and full names */}
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0 flex-1">
+                          {/* Debtor (Who pays) */}
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20">
+                            <PlayerAvatar preset={tx.fromAvatarPreset} size="sm" />
+                            <span
+                              className={cn(
+                                "font-bold text-xs sm:text-sm text-foreground break-words",
+                                tx.isCompleted && "line-through text-muted-foreground"
+                              )}
+                            >
+                              {tx.fromPlayerName}
+                            </span>
+                          </div>
+
+                          {/* Action indicator */}
+                          <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground uppercase px-1 shrink-0">
+                            <span className="hidden xs:inline text-[10px] tracking-wider">pays</span>
+                            <ArrowRight className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          </div>
+
+                          {/* Creditor (Who receives) */}
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                            <PlayerAvatar preset={tx.toAvatarPreset} size="sm" />
+                            <span
+                              className={cn(
+                                "font-bold text-xs sm:text-sm text-foreground break-words",
+                                tx.isCompleted && "line-through text-muted-foreground"
+                              )}
+                            >
+                              {tx.toPlayerName}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <span
-                          className={cn(
-                            "text-base md:text-lg font-bold font-mono block",
-                            tx.isCompleted ? "text-muted-foreground line-through" : "text-amber-400"
-                          )}
-                        >
-                          {formatRupees(tx.rupeeAmount)}
+                      {/* Right / Mobile bottom: Rupee & Chip Amount */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 pl-6 sm:pl-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40 shrink-0">
+                        <span className="text-[11px] text-muted-foreground sm:hidden font-medium">
+                          {tx.chipAmount.toLocaleString()} chips • {tx.isCompleted ? "Paid ✅" : "Tap to mark paid"}
                         </span>
-                        <p className="text-[10px] text-muted-foreground">
-                          {tx.chipAmount} chips • {tx.isCompleted ? "Paid ✅" : "Tap to mark paid"}
-                        </p>
+                        <div className="text-right shrink-0">
+                          <span
+                            className={cn(
+                              "text-base sm:text-lg font-bold font-mono block",
+                              tx.isCompleted ? "text-muted-foreground line-through" : "text-amber-400"
+                            )}
+                          >
+                            {formatRupees(tx.rupeeAmount)}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground hidden sm:block">
+                            {tx.chipAmount.toLocaleString()} chips • {tx.isCompleted ? "Paid ✅" : "Tap to mark paid"}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1249,8 +1278,8 @@ const PokerLedger = () => {
                       <span className="font-mono text-xs font-bold text-muted-foreground w-4">#{idx + 1}</span>
                       <PlayerAvatar preset={p.avatarPreset} size="sm" />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1">
-                          <span className="font-bold text-sm text-foreground truncate">{p.name}</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="font-bold text-sm text-foreground break-words">{p.name}</span>
                           {p.isShark && <span className="text-xs">🦈</span>}
                           {p.isWhale && <span className="text-xs">🐳</span>}
                         </div>
