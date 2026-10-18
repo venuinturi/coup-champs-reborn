@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "next-themes";
 import {
   ArrowLeft,
   Coins,
@@ -24,6 +25,8 @@ import {
   Clock,
   Pencil,
   Calendar,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +81,7 @@ const triggerHaptic = (duration: number = 20) => {
 
 const PokerLedger = () => {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const [session, setSession] = useState<PokerLedgerSession>(loadCurrentSession);
   const [activeTab, setActiveTab] = useState<"banker" | "cashout" | "settlement" | "history">("banker");
 
@@ -544,9 +548,9 @@ const PokerLedger = () => {
   return (
     <div className="relative min-h-screen bg-background overflow-x-hidden flex flex-col px-3 py-4 md:px-8 md:py-8">
       {/* Background patterns */}
-      <div className="absolute inset-0 bg-casino-pattern opacity-80 pointer-events-none" />
-      <div className="absolute inset-0 bg-diamond-pattern opacity-60 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-b from-red-500/10 via-transparent to-amber-500/5 pointer-events-none" />
+      <div className="absolute inset-0 bg-casino-pattern opacity-10 dark:opacity-80 pointer-events-none" />
+      <div className="absolute inset-0 bg-diamond-pattern opacity-5 dark:opacity-60 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 via-transparent to-amber-500/5 dark:from-red-500/10 dark:to-amber-500/5 pointer-events-none" />
 
       {/* Top Mobile-Friendly Navbar */}
       <div className="relative z-20 flex items-center justify-between w-full max-w-4xl mx-auto mb-4">
@@ -562,7 +566,7 @@ const PokerLedger = () => {
         </Button>
 
         {/* Stakes pill */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-semibold">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-[11px] font-semibold">
           <Coins className="w-3.5 h-3.5" />
           <span>1 chip = ₹{session.chipRateRupees ?? 0.5}</span>
           <span className="hidden sm:inline opacity-70">
@@ -571,18 +575,33 @@ const PokerLedger = () => {
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Direct Theme Toggle (Sun/Moon) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="h-8 w-8 p-0 border-border/60 text-muted-foreground hover:text-foreground rounded-lg"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-slate-700" />
+            )}
+          </Button>
+
           {/* Settings Trigger */}
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1 border-border/50 text-xs h-8 px-2.5">
-                <Settings2 className="w-3.5 h-3.5 text-red-400" />
+              <Button variant="outline" size="sm" className="gap-1 border-border/60 text-xs h-8 px-2.5">
+                <Settings2 className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
                 <span className="hidden sm:inline">Settings</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="glass-card border-border/60 max-w-sm w-[92vw] rounded-2xl">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-base">
-                  <Coins className="w-5 h-5 text-red-400" />
+                  <Coins className="w-5 h-5 text-red-500 dark:text-red-400" />
                   Poker Stakes & Chip Settings
                 </DialogTitle>
               </DialogHeader>
@@ -633,7 +652,7 @@ const PokerLedger = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleSaveSettings} className="w-full bg-red-600 hover:bg-red-700 text-sm">
+                <Button onClick={handleSaveSettings} className="w-full bg-red-600 hover:bg-red-700 text-white text-sm">
                   Save Changes
                 </Button>
               </DialogFooter>
@@ -650,7 +669,7 @@ const PokerLedger = () => {
         <div className="text-center space-y-1 mb-4">
           <div className="flex items-center justify-center gap-2">
             <h1 className="font-display text-2xl md:text-4xl font-bold tracking-wide">
-              <span className="bg-gradient-to-r from-red-400 via-rose-300 to-amber-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 dark:from-red-400 dark:via-rose-300 dark:to-amber-400 bg-clip-text text-transparent font-extrabold">
                 {session.title}
               </span>
             </h1>
@@ -666,7 +685,7 @@ const PokerLedger = () => {
           </div>
           <div className="flex items-center justify-center gap-2 text-xs md:text-sm text-muted-foreground flex-wrap">
             <span className="px-2 py-0.5 rounded-md bg-muted/60 text-foreground font-medium flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-red-400" />
+              <Calendar className="w-3 h-3 text-red-500 dark:text-red-400" />
               {new Date(session.createdAt || Date.now()).toLocaleDateString("en-IN", {
                 weekday: "short",
                 day: "numeric",
@@ -683,8 +702,8 @@ const PokerLedger = () => {
 
         {/* Global Summary KPI Bar (Mobile friendly 2x2 grid) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
-          <div className="glass-card rounded-xl p-3 border border-red-500/20 flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-red-500/20 text-red-400 shrink-0">
+          <div className="glass-card rounded-2xl p-3 border border-red-500/20 shadow-sm flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 shrink-0">
               <Coins className="w-4 h-4 md:w-5 md:h-5" />
             </div>
             <div className="min-w-0">
@@ -692,14 +711,14 @@ const PokerLedger = () => {
               <p className="text-sm md:text-base font-bold text-foreground truncate">
                 {totalPotChips.toLocaleString()} <span className="text-[10px] text-muted-foreground font-normal">chips</span>
               </p>
-              <p className="text-[11px] font-semibold text-amber-400 truncate">
+              <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 truncate">
                 {formatRupees(totalPotRupees)}
               </p>
             </div>
           </div>
 
-          <div className="glass-card rounded-xl p-3 border border-border/50 flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 shrink-0">
+          <div className="glass-card rounded-2xl p-3 border border-border/60 shadow-sm flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 shrink-0">
               <Users className="w-4 h-4 md:w-5 md:h-5" />
             </div>
             <div className="min-w-0">
@@ -709,8 +728,8 @@ const PokerLedger = () => {
             </div>
           </div>
 
-          <div className="glass-card rounded-xl p-3 border border-border/50 flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400 shrink-0">
+          <div className="glass-card rounded-2xl p-3 border border-border/60 shadow-sm flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
               <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />
             </div>
             <div className="min-w-0">
@@ -722,8 +741,8 @@ const PokerLedger = () => {
             </div>
           </div>
 
-          <div className="glass-card rounded-xl p-3 border border-border/50 flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0">
+          <div className="glass-card rounded-2xl p-3 border border-border/60 shadow-sm flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
               <Wallet className="w-4 h-4 md:w-5 md:h-5" />
             </div>
             <div className="min-w-0">
@@ -731,7 +750,7 @@ const PokerLedger = () => {
               <p className="text-sm md:text-base font-bold text-foreground truncate">
                 {avgBuyInChips.toLocaleString()} <span className="text-[10px] text-muted-foreground font-normal">chips</span>
               </p>
-              <p className="text-[11px] font-semibold text-emerald-400 truncate">
+              <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 truncate">
                 {formatRupees(avgBuyInRupees)}
               </p>
             </div>
@@ -740,30 +759,30 @@ const PokerLedger = () => {
 
         {/* Tab Navigation - Touch Optimized */}
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full flex-1 flex flex-col">
-          <TabsList className="grid grid-cols-4 w-full mx-auto mb-4 bg-card/70 border border-border/60 p-1 rounded-xl h-11">
+          <TabsList className="grid grid-cols-4 w-full mx-auto mb-4 bg-muted/60 dark:bg-card/70 border border-border/60 p-1 rounded-2xl h-11 shadow-sm">
             <TabsTrigger
               value="banker"
-              className="text-xs md:text-sm font-semibold rounded-lg data-[state=active]:bg-red-600 data-[state=active]:text-white transition-all"
+              className="text-xs md:text-sm font-semibold rounded-xl data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
             >
               <Coins className="w-3.5 h-3.5 mr-1 hidden sm:inline" />
               1. Buy-in
             </TabsTrigger>
             <TabsTrigger
               value="cashout"
-              className="text-xs md:text-sm font-semibold rounded-lg data-[state=active]:bg-red-600 data-[state=active]:text-white transition-all"
+              className="text-xs md:text-sm font-semibold rounded-xl data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
             >
               2. Cash Out
             </TabsTrigger>
             <TabsTrigger
               value="settlement"
-              className="text-xs md:text-sm font-semibold rounded-lg data-[state=active]:bg-red-600 data-[state=active]:text-white transition-all"
+              className="text-xs md:text-sm font-semibold rounded-xl data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
             >
               <IndianRupee className="w-3.5 h-3.5 mr-1 hidden sm:inline" />
               3. Settle (₹)
             </TabsTrigger>
             <TabsTrigger
               value="history"
-              className="text-xs md:text-sm font-semibold rounded-lg data-[state=active]:bg-red-600 data-[state=active]:text-white transition-all"
+              className="text-xs md:text-sm font-semibold rounded-xl data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
             >
               <History className="w-3.5 h-3.5 mr-1 hidden sm:inline" />
               Logs
@@ -865,7 +884,7 @@ const PokerLedger = () => {
                     return (
                       <div
                         key={player.id}
-                        className="glass-card rounded-xl p-3 md:p-3.5 border border-border/60 hover:border-red-500/30 transition-all flex items-center justify-between gap-2.5"
+                        className="glass-card rounded-2xl p-3 md:p-3.5 border border-border/70 hover:border-red-500/40 transition-all flex items-center justify-between gap-2.5 shadow-sm"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <PlayerAvatar preset={player.avatarPreset} size="md" showRing ringColor="ring-red-500/40" />
@@ -873,14 +892,14 @@ const PokerLedger = () => {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-bold text-foreground text-sm truncate">{player.name}</span>
                               {rebuyCount > 0 && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30 shrink-0">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold border border-amber-500/30 shrink-0">
                                   {rebuyCount} {rebuyCount === 1 ? "re-buy" : "re-buys"}
                                 </span>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
                               Invested: <strong className="text-foreground">{totalPlayerChips.toLocaleString()} chips</strong>{" "}
-                              <span className="text-amber-400 font-semibold">({formatRupees(totalPlayerRupees)})</span>
+                              <span className="text-amber-700 dark:text-amber-400 font-bold">({formatRupees(totalPlayerRupees)})</span>
                             </p>
                           </div>
                         </div>
@@ -891,7 +910,7 @@ const PokerLedger = () => {
                             size="sm"
                             variant="secondary"
                             onClick={() => handleQuickRebuy(player.id)}
-                            className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold gap-1 h-9 px-2.5"
+                            className="bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30 text-xs font-bold gap-1 h-9 px-2.5 rounded-xl"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             {(session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400}
@@ -905,7 +924,7 @@ const PokerLedger = () => {
                               setRebuyPlayerId(player.id);
                               setCustomRebuyAmount(String((session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400));
                             }}
-                            className="text-xs h-9 px-2 text-muted-foreground hover:text-foreground"
+                            className="text-xs h-9 px-2 text-muted-foreground hover:text-foreground rounded-xl"
                           >
                             Custom
                           </Button>
@@ -915,7 +934,7 @@ const PokerLedger = () => {
                             size="icon"
                             variant="ghost"
                             onClick={() => handleRemovePlayer(player.id, player.name)}
-                            className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                            className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-xl"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -946,20 +965,20 @@ const PokerLedger = () => {
             {/* Table Integrity & Discrepancy Card */}
             <div
               className={cn(
-                "rounded-2xl p-3.5 md:p-4 border transition-all duration-300",
+                "rounded-2xl p-3.5 md:p-4 border transition-all duration-300 shadow-sm",
                 settlement.isBalanced
-                  ? "bg-emerald-950/20 border-emerald-500/40 text-emerald-200"
-                  : "bg-amber-950/20 border-amber-500/40 text-amber-200"
+                  ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-500/40 text-emerald-900 dark:text-emerald-200"
+                  : "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-500/40 text-amber-900 dark:text-amber-200"
               )}
             >
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   {settlement.isBalanced ? (
-                    <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
+                    <div className="p-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
                       <CheckCircle2 className="w-5 h-5" />
                     </div>
                   ) : (
-                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+                    <div className="p-2 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
                       <AlertTriangle className="w-5 h-5" />
                     </div>
                   )}
@@ -967,7 +986,7 @@ const PokerLedger = () => {
                     <h4 className="font-bold text-sm">
                       {settlement.isBalanced ? "Table is Balanced! (0 Discrepancy)" : "Chip Discrepancy Detected"}
                     </h4>
-                    <p className="text-xs opacity-85 leading-relaxed">
+                    <p className="text-xs opacity-90 leading-relaxed">
                       Pot: <span className="font-semibold">{settlement.totalBuyIns.toLocaleString()} chips</span> ({formatRupees(settlement.totalBuyInsRupees)}) | Stacks: <span className="font-semibold">{settlement.totalCashOut.toLocaleString()} chips</span> ({formatRupees(settlement.totalCashOutRupees)})
                       {!settlement.isBalanced && (
                         <span>
@@ -985,7 +1004,7 @@ const PokerLedger = () => {
                     size="sm"
                     variant="outline"
                     onClick={handleAutoBalance}
-                    className="w-full sm:w-auto border-amber-500/40 text-amber-300 hover:bg-amber-500/20 text-xs h-8"
+                    className="w-full sm:w-auto border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 text-xs h-8 rounded-xl font-semibold"
                   >
                     Auto-balance Difference
                   </Button>
@@ -1012,7 +1031,7 @@ const PokerLedger = () => {
                   return (
                     <div
                       key={player.id}
-                      className="glass-card rounded-xl p-3 md:p-4 border border-border/60 hover:border-red-500/30 transition-all space-y-2.5"
+                      className="glass-card rounded-2xl p-3 md:p-4 border border-border/70 hover:border-red-500/30 transition-all space-y-2.5 shadow-sm"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -1030,10 +1049,10 @@ const PokerLedger = () => {
                           className={cn(
                             "px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 shrink-0",
                             netChips > 0
-                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                              ? "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30"
                               : netChips < 0
-                              ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                              : "bg-slate-500/20 text-slate-400 border border-slate-500/30"
+                              ? "bg-red-500/10 dark:bg-red-500/20 text-red-800 dark:text-red-300 border border-red-500/30"
+                              : "bg-slate-500/10 dark:bg-slate-500/20 text-slate-800 dark:text-slate-300 border border-slate-500/30"
                           )}
                         >
                           {netChips > 0 ? <TrendingUp className="w-3 h-3" /> : netChips < 0 ? <TrendingDown className="w-3 h-3" /> : null}
@@ -1111,12 +1130,12 @@ const PokerLedger = () => {
             {/* Top Standings Cards (Shark / Whale) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {settlement.players.length > 0 && (
-                <div className="glass-card rounded-xl p-3.5 border border-amber-500/30 bg-amber-500/5 relative overflow-hidden flex items-center gap-3">
+                <div className="glass-card rounded-2xl p-3.5 border border-amber-500/30 bg-amber-500/5 relative overflow-hidden flex items-center gap-3 shadow-sm">
                   <div className="text-3xl">🦈</div>
                   <div className="min-w-0">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400 block">Shark (Top Winner)</span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-amber-800 dark:text-amber-400 block">Shark (Top Winner)</span>
                     <p className="font-bold text-foreground text-base break-words">{settlement.players[0].name}</p>
-                    <p className="text-xs text-emerald-400 font-bold">
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">
                       +{formatRupees(settlement.players[0].netRupees)} (+{settlement.players[0].netChips} chips)
                     </p>
                   </div>
@@ -1124,7 +1143,7 @@ const PokerLedger = () => {
               )}
 
               {/* Total Pot summary */}
-              <div className="glass-card rounded-xl p-3.5 border border-border/50">
+              <div className="glass-card rounded-2xl p-3.5 border border-border/70 shadow-sm">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">Session Pot</span>
                 <p className="font-bold text-foreground text-base">
                   {formatRupees(settlement.totalBuyInsRupees)}{" "}
@@ -1136,7 +1155,7 @@ const PokerLedger = () => {
               </div>
 
               {/* Completion Progress */}
-              <div className="glass-card rounded-xl p-3.5 border border-border/50">
+              <div className="glass-card rounded-2xl p-3.5 border border-border/70 shadow-sm">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">Settlement Progress</span>
                 <p className="font-bold text-foreground text-base">
                   {session.completedTransactionIds.length} of {settlement.transactions.length} Paid
@@ -1157,11 +1176,11 @@ const PokerLedger = () => {
             </div>
 
             {/* WHO PAYS WHOM (MINIMUM CASH FLOW IN RUPEES) */}
-            <div className="glass-card rounded-2xl p-4 md:p-5 border border-red-500/30 space-y-3.5">
+            <div className="glass-card rounded-2xl p-4 md:p-5 border border-red-500/30 space-y-3.5 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/50 pb-3">
                 <div>
                   <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                    <IndianRupee className="w-5 h-5 text-red-400" />
+                    <IndianRupee className="w-5 h-5 text-red-500 dark:text-red-400" />
                     Who Pays Whom (Direct Rupee Settlement)
                   </h3>
                   <p className="text-xs text-muted-foreground">
@@ -1171,7 +1190,7 @@ const PokerLedger = () => {
 
                 <Button
                   onClick={handleCopyReceipt}
-                  className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white text-xs font-semibold gap-1.5 h-9 shrink-0 shadow-sm"
+                  className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white text-xs font-semibold gap-1.5 h-9 shrink-0 shadow-sm rounded-xl"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   Copy WhatsApp / Telegram Receipt
@@ -1189,9 +1208,9 @@ const PokerLedger = () => {
                       key={tx.id}
                       onClick={() => handleToggleTransaction(tx.id)}
                       className={cn(
-                        "rounded-xl p-3 md:p-3.5 border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5",
+                        "rounded-2xl p-3 md:p-3.5 border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm",
                         tx.isCompleted
-                          ? "bg-emerald-950/20 border-emerald-500/30 opacity-70"
+                          ? "bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-300/60 dark:border-emerald-500/30 opacity-70"
                           : "glass-card border-border/70 hover:border-red-500/40"
                       )}
                     >
@@ -1207,7 +1226,7 @@ const PokerLedger = () => {
                         {/* Transfer flow badges with avatars and full names */}
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0 flex-1">
                           {/* Debtor (Who pays) */}
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-red-500/10 border border-red-500/20">
                             <PlayerAvatar preset={tx.fromAvatarPreset} size="sm" />
                             <span
                               className={cn(
@@ -1222,11 +1241,11 @@ const PokerLedger = () => {
                           {/* Action indicator */}
                           <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground uppercase px-1 shrink-0">
                             <span className="hidden xs:inline text-[10px] tracking-wider">pays</span>
-                            <ArrowRight className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <ArrowRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                           </div>
 
                           {/* Creditor (Who receives) */}
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                             <PlayerAvatar preset={tx.toAvatarPreset} size="sm" />
                             <span
                               className={cn(
@@ -1249,7 +1268,7 @@ const PokerLedger = () => {
                           <span
                             className={cn(
                               "text-base sm:text-lg font-bold font-mono block",
-                              tx.isCompleted ? "text-muted-foreground line-through" : "text-amber-400"
+                              tx.isCompleted ? "text-muted-foreground line-through" : "text-amber-700 dark:text-amber-400"
                             )}
                           >
                             {formatRupees(tx.rupeeAmount)}
@@ -1266,7 +1285,7 @@ const PokerLedger = () => {
             </div>
 
             {/* Full Player Standings Table */}
-            <div className="glass-card rounded-2xl p-4 md:p-5 border border-border/50 space-y-3">
+            <div className="glass-card rounded-2xl p-4 md:p-5 border border-border/70 space-y-3 shadow-sm">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Full Game Standings (Rupees & Chips)
               </h3>
@@ -1293,7 +1312,7 @@ const PokerLedger = () => {
                       <span
                         className={cn(
                           "font-bold text-sm font-mono block",
-                          p.netChips > 0 ? "text-emerald-400" : p.netChips < 0 ? "text-red-400" : "text-muted-foreground"
+                          p.netChips > 0 ? "text-emerald-700 dark:text-emerald-400 font-bold" : p.netChips < 0 ? "text-red-700 dark:text-red-400 font-bold" : "text-muted-foreground"
                         )}
                       >
                         {formatRupees(p.netRupees, { includeSign: true })}
@@ -1412,7 +1431,7 @@ const PokerLedger = () => {
         <div className="mt-8 pt-6 border-t border-border/50 space-y-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
                 <Clock className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-bold text-foreground">
@@ -1423,16 +1442,16 @@ const PokerLedger = () => {
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Tap <span className="text-amber-400 font-semibold">✏️ Edit</span> to correct any wrong amounts or misclicks
+              Tap <span className="text-amber-700 dark:text-amber-400 font-semibold">✏️ Edit</span> to correct any wrong amounts or misclicks
             </p>
           </div>
 
           {allBuyInLogs.length === 0 ? (
-            <div className="glass-card rounded-xl p-6 text-center text-xs text-muted-foreground border-dashed border border-border/60">
+            <div className="glass-card rounded-2xl p-6 text-center text-xs text-muted-foreground border-dashed border border-border/70 shadow-sm">
               No buy-ins or re-buys recorded yet. When players join or take re-buys, their exact timestamps and amounts will appear here.
             </div>
           ) : (
-            <div className="glass-card rounded-2xl border border-border/60 overflow-hidden divide-y divide-border/40 shadow-sm">
+            <div className="glass-card rounded-2xl border border-border/70 overflow-hidden divide-y divide-border/40 shadow-sm">
               {allBuyInLogs.map((item) => {
                 const dateObj = new Date(item.timestamp);
                 const timeStr = dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -1441,7 +1460,7 @@ const PokerLedger = () => {
                 return (
                   <div
                     key={`${item.playerId}_${item.buyInId}`}
-                    className="p-3 md:p-3.5 flex items-center justify-between gap-2.5 hover:bg-muted/20 transition-colors"
+                    className="p-3 md:p-3.5 flex items-center justify-between gap-2.5 hover:bg-muted/40 transition-colors"
                   >
                     {/* Left: Avatar + Player Info + Type Badge */}
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -1455,8 +1474,8 @@ const PokerLedger = () => {
                             className={cn(
                               "text-[10px] px-1.5 py-0.5 rounded-full font-semibold border shrink-0",
                               item.isInitial
-                                ? "bg-blue-500/10 text-blue-300 border-blue-500/20"
-                                : "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                                ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
+                                : "bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30"
                             )}
                           >
                             {item.note || (item.isInitial ? "Initial Buy-in" : `Re-buy #${item.rebuyIndex}`)}
@@ -1475,7 +1494,7 @@ const PokerLedger = () => {
                         <span className="text-xs md:text-sm font-bold font-mono text-foreground block">
                           {item.amount.toLocaleString()} <span className="text-[10px] text-muted-foreground font-normal">chips</span>
                         </span>
-                        <span className="text-[11px] font-semibold text-amber-400 font-mono">
+                        <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 font-mono">
                           {formatRupees(rupeeValue)}
                         </span>
                       </div>

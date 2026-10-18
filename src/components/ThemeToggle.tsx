@@ -56,6 +56,9 @@ export const ThemeToggle = () => {
   }, [handleToggle]);
 
   if (!mounted) return null;
+  if (typeof window !== "undefined" && window.location.pathname.includes("/poker/ledger")) {
+    return null;
+  }
 
   return (
     <Button
