@@ -59,6 +59,7 @@ export interface PokerLedgerSession {
   completedTransactionIds: string[];
   isEnded?: boolean;
   roomCode?: string;
+  cloudRoomId?: string;
 }
 
 export interface SettlementResult {
@@ -439,12 +440,50 @@ export const saveCurrentSession = (session: PokerLedgerSession): void => {
   }
 };
 
+const STORAGE_DELETED_SNAPSHOTS = "poker_ledger_deleted_snapshots_v1";
+
+export const getDeletedSnapshotIds = (): string[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_DELETED_SNAPSHOTS);
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) return list;
+    }
+  } catch {}
+  return [];
+};
+
+export const markSnapshotAsDeletedLocally = (
+  id?: string,
+  roomCode?: string,
+  cloudRoomId?: string
+) => {
+  try {
+    const existing = getDeletedSnapshotIds();
+    const set = new Set(existing);
+    if (id) set.add(id);
+    if (roomCode) set.add(roomCode);
+    if (cloudRoomId) set.add(cloudRoomId);
+    localStorage.setItem(STORAGE_DELETED_SNAPSHOTS, JSON.stringify(Array.from(set)));
+  } catch (e) {
+    console.error("Failed to mark snapshot as deleted", e);
+  }
+};
+
 export const loadSessionHistory = (): PokerLedgerSession[] => {
   try {
     const raw = localStorage.getItem(STORAGE_SESSION_HISTORY);
     if (raw) {
       const list = JSON.parse(raw);
-      if (Array.isArray(list)) return list;
+      if (Array.isArray(list)) {
+        const deletedIds = new Set(getDeletedSnapshotIds());
+        return list.filter(
+          (s) =>
+            !deletedIds.has(s.id) &&
+            (!s.roomCode || !deletedIds.has(s.roomCode)) &&
+            (!s.cloudRoomId || !deletedIds.has(s.cloudRoomId))
+        );
+      }
     }
   } catch (e) {
     console.error("Failed to load poker session history", e);
@@ -474,15 +513,77 @@ export const saveSessionToHistory = (session: PokerLedgerSession): PokerLedgerSe
   }
 };
 
-export const deleteSessionFromHistory = (sessionId: string): PokerLedgerSession[] => {
+export const deleteSessionFromHistory = (
+  sessionId: string,
+  roomCode?: string,
+  cloudRoomId?: string
+): PokerLedgerSession[] => {
   try {
+    markSnapshotAsDeletedLocally(sessionId, roomCode, cloudRoomId);
     const history = loadSessionHistory();
-    const filtered = history.filter((s) => s.id !== sessionId);
+    const filtered = history.filter(
+      (s) =>
+        s.id !== sessionId &&
+        (!roomCode || s.roomCode !== roomCode) &&
+        (!cloudRoomId || s.cloudRoomId !== cloudRoomId)
+    );
     localStorage.setItem(STORAGE_SESSION_HISTORY, JSON.stringify(filtered));
     return filtered;
   } catch (e) {
     console.error("Failed to delete session from history", e);
     return [];
+  }
+};
+
+// Permanently delete or tombstone snapshot from Supabase game_rooms
+export const deleteSnapshotFromCloud = async (
+  sessionId: string,
+  roomCode?: string,
+  cloudRoomId?: string
+): Promise<boolean> => {
+  try {
+    markSnapshotAsDeletedLocally(sessionId, roomCode, cloudRoomId);
+
+    // 1. Delete or mark deleted by cloudRoomId (the UUID primary key in game_rooms)
+    if (cloudRoomId) {
+      const { error: delErr } = await supabase.from("game_rooms").delete().eq("id", cloudRoomId);
+      if (delErr) {
+        // Fallback update to status: 'deleted' if direct delete is blocked by RLS
+        await supabase
+          .from("game_rooms")
+          .update({
+            status: "deleted",
+            game_state: { type: "poker_ledger", is_deleted: true } as any,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", cloudRoomId);
+      }
+    }
+
+    // 2. Delete or mark deleted by roomCode
+    if (roomCode) {
+      const { error: codeErr } = await supabase.from("game_rooms").delete().eq("room_code", roomCode);
+      if (codeErr) {
+        await supabase
+          .from("game_rooms")
+          .update({
+            status: "deleted",
+            game_state: { type: "poker_ledger", is_deleted: true } as any,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("room_code", roomCode);
+      }
+    }
+
+    // 3. Fallback: if sessionId is UUID and distinct
+    if (sessionId && sessionId !== cloudRoomId && !sessionId.startsWith("session_") && !sessionId.startsWith("sess_")) {
+      await supabase.from("game_rooms").delete().eq("id", sessionId);
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Failed to delete snapshot from cloud:", err);
+    return false;
   }
 };
 
@@ -562,11 +663,14 @@ export const saveSnapshotToCloud = async (
 // Fetch all saved cloud snapshots from game_rooms for public access
 export const fetchSavedSnapshots = async (): Promise<PokerLedgerSession[]> => {
   try {
+    const deletedIds = new Set(getDeletedSnapshotIds());
+
     const { data, error } = await supabase
       .from("game_rooms")
       .select("*")
+      .neq("status", "deleted")
       .order("updated_at", { ascending: false })
-      .limit(40);
+      .limit(50);
 
     if (error || !data) {
       return loadSessionHistory();
@@ -574,15 +678,23 @@ export const fetchSavedSnapshots = async (): Promise<PokerLedgerSession[]> => {
 
     const cloudSessions: PokerLedgerSession[] = [];
     for (const row of data) {
+      if (row.status === "deleted") continue;
+      if (deletedIds.has(row.id) || (row.room_code && deletedIds.has(row.room_code))) continue;
+
       const state = (row.game_state || {}) as any;
+      if (state.is_deleted) continue;
+
       if (state.type === "poker_ledger" && state.session_data) {
         const sess = state.session_data as PokerLedgerSession;
+        if (deletedIds.has(sess.id) || (sess.roomCode && deletedIds.has(sess.roomCode))) continue;
+
         if (sess && Array.isArray(sess.players) && sess.players.length > 0) {
           cloudSessions.push({
             ...sess,
             id: sess.id || row.id,
             title: sess.title || state.room_name || row.host_name || "Poker Game",
             roomCode: sess.roomCode || row.room_code,
+            cloudRoomId: row.id,
             updatedAt: new Date(row.updated_at || row.created_at).getTime(),
           });
         }
@@ -593,8 +705,12 @@ export const fetchSavedSnapshots = async (): Promise<PokerLedgerSession[]> => {
     const local = loadSessionHistory();
     const merged = [...cloudSessions];
     for (const loc of local) {
+      if (deletedIds.has(loc.id) || (loc.roomCode && deletedIds.has(loc.roomCode))) continue;
       const exists = merged.some(
-        (m) => m.id === loc.id || (m.roomCode && loc.roomCode && m.roomCode === loc.roomCode)
+        (m) =>
+          m.id === loc.id ||
+          (m.cloudRoomId && loc.cloudRoomId && m.cloudRoomId === loc.cloudRoomId) ||
+          (m.roomCode && loc.roomCode && m.roomCode === loc.roomCode)
       );
       if (!exists) merged.push(loc);
     }

@@ -65,6 +65,7 @@ import {
   loadSessionHistory,
   saveSessionToHistory,
   deleteSessionFromHistory,
+  deleteSnapshotFromCloud,
   createDefaultSession,
   clearActiveSession,
   saveSnapshotToCloud,
@@ -658,10 +659,24 @@ const PokerLedger = ({
   };
 
   // Delete from history
-  const handleDeleteHistory = (sessionId: string) => {
-    const updated = deleteSessionFromHistory(sessionId);
-    setHistoryList(updated);
-    toast({ title: "Deleted", description: "Session removed from history." });
+  const handleDeleteHistory = async (hist: PokerLedgerSession) => {
+    // 1. Immediately remove only this item from UI state so other rows remain intact
+    setHistoryList((prev) =>
+      prev.filter(
+        (s) =>
+          s.id !== hist.id &&
+          (!hist.roomCode || s.roomCode !== hist.roomCode) &&
+          (!hist.cloudRoomId || s.cloudRoomId !== hist.cloudRoomId)
+      )
+    );
+
+    // 2. Remove from local history and tombstone
+    deleteSessionFromHistory(hist.id, hist.roomCode, hist.cloudRoomId);
+
+    // 3. Delete from Supabase cloud permanently
+    await deleteSnapshotFromCloud(hist.id, hist.roomCode, hist.cloudRoomId);
+
+    toast({ title: "Deleted 🗑️", description: `"${hist.title}" removed from saved games.` });
   };
 
   return (
@@ -1520,8 +1535,9 @@ const PokerLedger = ({
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleDeleteHistory(hist.id)}
+                          onClick={() => handleDeleteHistory(hist)}
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          title="Delete saved game"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>

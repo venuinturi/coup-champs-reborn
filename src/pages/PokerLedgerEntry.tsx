@@ -17,6 +17,7 @@ import {
   History,
   ArrowRight,
   Trophy,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,8 @@ import {
   createDefaultSession,
   fetchSavedSnapshots,
   saveCurrentSession,
+  deleteSessionFromHistory,
+  deleteSnapshotFromCloud,
   formatRupees,
   formatChips,
   type PokerLedgerSession,
@@ -72,6 +75,29 @@ const PokerLedgerEntry = () => {
       saveCurrentSession(snap);
       navigate("/poker/ledger/offline");
     }
+  };
+
+  const handleDeleteSnapshot = async (snap: PokerLedgerSession) => {
+    // 1. Immediately remove from local UI list
+    setSavedSnapshots((prev) =>
+      prev.filter(
+        (s) =>
+          s.id !== snap.id &&
+          (!snap.roomCode || s.roomCode !== snap.roomCode) &&
+          (!snap.cloudRoomId || s.cloudRoomId !== snap.cloudRoomId)
+      )
+    );
+
+    // 2. Remove from local storage & tombstone
+    deleteSessionFromHistory(snap.id, snap.roomCode, snap.cloudRoomId);
+
+    // 3. Delete from Supabase cloud
+    await deleteSnapshotFromCloud(snap.id, snap.roomCode, snap.cloudRoomId);
+
+    toast({
+      title: "Deleted 🗑️",
+      description: `"${snap.title}" removed from saved games.`,
+    });
   };
 
   const handleCreateRoom = async () => {
@@ -327,14 +353,32 @@ const PokerLedgerEntry = () => {
                       </div>
                     </div>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-amber-500/30 text-amber-700 dark:text-amber-400 group-hover:bg-amber-500/10 text-xs font-semibold h-9 px-3 rounded-xl shrink-0 gap-1"
-                    >
-                      <span>View</span>
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </Button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenSnapshot(snap);
+                        }}
+                        className="border-amber-500/30 text-amber-700 dark:text-amber-400 group-hover:bg-amber-500/10 text-xs font-semibold h-9 px-3 rounded-xl shrink-0 gap-1"
+                      >
+                        <span>View</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSnapshot(snap);
+                        }}
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-xl shrink-0"
+                        title="Delete saved game"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
