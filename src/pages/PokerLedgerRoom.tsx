@@ -55,20 +55,27 @@ const PokerLedgerRoom = () => {
     }
   }, [roomCode, hasJoined, room, joinRoom]);
 
+  const isCreatorRef = useRef(isCreator);
+  isCreatorRef.current = isCreator;
+  const roomRef = useRef(room);
+  roomRef.current = room;
+  const updateRoomSessionRef = useRef(updateRoomSession);
+  updateRoomSessionRef.current = updateRoomSession;
+
   // Debounced sync: creator pushes session changes to Supabase
   const handleSessionChange = useCallback(
     (session: PokerLedgerSession) => {
-      if (!isCreator || !room) return;
+      if (!isCreatorRef.current || !roomRef.current) return;
 
-      // Debounce to avoid spamming the server on every keystroke
+      // 200ms debounce: swift live synchronization while avoiding keystroke spam
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
       syncTimeoutRef.current = setTimeout(() => {
-        updateRoomSession(session);
-      }, 500);
+        updateRoomSessionRef.current(session);
+      }, 200);
     },
-    [isCreator, room, updateRoomSession]
+    []
   );
 
   // Cleanup debounce on unmount

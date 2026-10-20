@@ -53,6 +53,30 @@ const getOrCreateUserId = async (): Promise<string> => {
   return getBrowserId();
 };
 
+// Ensure player is registered in room_players so RLS allows updates to game_rooms
+const ensureRoomPlayer = async (roomId: string, playerId: string, playerName: string, isHost: boolean) => {
+  try {
+    const { data: existing } = await supabase
+      .from("room_players")
+      .select("id")
+      .eq("room_id", roomId)
+      .eq("player_id", playerId)
+      .maybeSingle();
+
+    if (!existing) {
+      await supabase.from("room_players").insert({
+        room_id: roomId,
+        player_id: playerId,
+        player_name: playerName,
+        is_host: isHost,
+        is_ready: true,
+      });
+    }
+  } catch (err) {
+    console.warn("Failed to ensure room_players entry:", err);
+  }
+};
+
 const parseRoomFromRow = (row: any): PokerRoom => {
   const gameState = (row.game_state || {}) as any;
   const sessionData = (gameState.session_data || {}) as PokerLedgerSession;
@@ -90,15 +114,37 @@ export const usePokerRoom = (): UsePokerRoomReturn => {
         localStorage.getItem(`poker_room_host_${room.room_code}`) === "true")
   );
 
-  // Subscribe to realtime updates for a room
+  // Subscribe to realtime updates for a room (both broadcast & postgres_changes)
   const subscribeToRoom = useCallback((roomCode: string) => {
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
-    const channel = supabase
-      .channel(`poker_ledger_room_${roomCode}_${Date.now()}`)
+    const channelName = `poker_ledger_room_${roomCode}`;
+    const channel = supabase.channel(channelName, {
+      config: { broadcast: { self: false } },
+    });
+
+    channel
+      // 1. Instant sub-millisecond broadcast mirror from host
+      .on(
+        "broadcast",
+        { event: "session_sync" },
+        ({ payload }: { payload: PokerLedgerSession }) => {
+          if (payload && payload.players) {
+            setRoom((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                session_data: payload,
+                updated_at: new Date().toISOString(),
+              };
+            });
+          }
+        }
+      )
+      // 2. Postgres database row changes
       .on(
         "postgres_changes",
         {
@@ -133,6 +179,35 @@ export const usePokerRoom = (): UsePokerRoomReturn => {
       }
     };
   }, []);
+
+  // Periodic polling fallback for viewers (every 3 seconds)
+  useEffect(() => {
+    if (!room || isCreator) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const { data, error: fetchErr } = await supabase
+          .from("game_rooms")
+          .select("*")
+          .eq("room_code", room.room_code)
+          .single();
+
+        if (data && !fetchErr) {
+          const fresh = parseRoomFromRow(data);
+          // Only update state if session data actually differs
+          const freshStr = JSON.stringify(fresh.session_data);
+          const currentStr = JSON.stringify(room.session_data);
+          if (freshStr !== currentStr) {
+            setRoom(fresh);
+          }
+        }
+      } catch {
+        // Ignore polling errors
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [room?.room_code, isCreator, room?.session_data]);
 
   // Create a new room
   const createRoom = useCallback(
@@ -183,6 +258,9 @@ export const usePokerRoom = (): UsePokerRoomReturn => {
           throw new Error("Could not create room code. Please try again.");
         }
 
+        // CRITICAL: Insert host into room_players so RLS allows updates to game_rooms!
+        await ensureRoomPlayer(insertedData.id, uid, roomName.trim(), true);
+
         // Mark this browser as the host for this room
         try {
           localStorage.setItem(`poker_room_host_${roomCode}`, "true");
@@ -229,6 +307,11 @@ export const usePokerRoom = (): UsePokerRoomReturn => {
         const foundRoom = parseRoomFromRow(data);
         setRoom(foundRoom);
         subscribeToRoom(normalizedCode);
+
+        // Register viewer in room_players
+        const uid = await getOrCreateUserId();
+        await ensureRoomPlayer(foundRoom.id, uid, "Viewer", false);
+
         return true;
       } catch (err: any) {
         console.error("Failed to join room:", err);
@@ -246,7 +329,25 @@ export const usePokerRoom = (): UsePokerRoomReturn => {
     async (session: PokerLedgerSession): Promise<void> => {
       if (!room) return;
 
+      // 1. Send instant Realtime Broadcast to all viewers on the table
+      if (channelRef.current) {
+        try {
+          channelRef.current.send({
+            type: "broadcast",
+            event: "session_sync",
+            payload: session,
+          });
+        } catch (bErr) {
+          console.warn("Broadcast send warning:", bErr);
+        }
+      }
+
+      // 2. Persist to Supabase game_rooms table
       try {
+        const uid = await getOrCreateUserId();
+        // Ensure host entry in room_players so RLS allows UPDATE
+        await ensureRoomPlayer(room.id, uid, room.room_name, true);
+
         const { error: updateError } = await supabase
           .from("game_rooms")
           .update({
@@ -260,7 +361,9 @@ export const usePokerRoom = (): UsePokerRoomReturn => {
           .eq("id", room.id);
 
         if (updateError) {
-          console.error("Failed to sync room session:", updateError);
+          console.error("Failed to sync room session to Supabase:", updateError);
+        } else {
+          setRoom((prev) => (prev ? { ...prev, session_data: session } : prev));
         }
       } catch (err) {
         console.error("Error updating room session:", err);
