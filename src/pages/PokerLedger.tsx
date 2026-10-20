@@ -67,6 +67,8 @@ import {
   deleteSessionFromHistory,
   createDefaultSession,
   clearActiveSession,
+  saveSnapshotToCloud,
+  fetchSavedSnapshots,
 } from "@/lib/poker/pokerLedger";
 
 const triggerHaptic = (duration: number = 20) => {
@@ -148,6 +150,15 @@ const PokerLedger = ({
 
   // History list
   const [historyList, setHistoryList] = useState<PokerLedgerSession[]>(loadSessionHistory);
+
+  // Load cloud snapshots on mount so history contains all shared games across devices
+  useEffect(() => {
+    fetchSavedSnapshots().then((cloudList) => {
+      if (cloudList && cloudList.length > 0) {
+        setHistoryList(cloudList);
+      }
+    });
+  }, []);
 
   // Sync roomSession prop into local state for viewers (when room data updates via Realtime)
   useEffect(() => {
@@ -456,16 +467,29 @@ const PokerLedger = ({
     }
   };
 
-  // Save session to history
-  const handleSaveToHistory = () => {
+  // Save session to history (local storage + Supabase cloud snapshot)
+  const handleSaveToHistory = async () => {
+    // 1. Local storage save
     const updated = saveSessionToHistory(session);
     setHistoryList(updated);
     sounds.win();
     triggerHaptic(35);
     toast({
-      title: "Session Saved! 💾",
-      description: `"${session.title}" saved to your past games history.`,
+      title: "Saving Snapshot...",
+      description: `Saving "${session.title}" to cloud...`,
     });
+
+    // 2. Cloud save to Supabase so it's accessible to all users across devices
+    const savedCode = await saveSnapshotToCloud(session, roomCode);
+    if (savedCode) {
+      toast({
+        title: "Snapshot Saved to Cloud! 💾",
+        description: `"${session.title}" is saved and accessible to all players whenever the portal is opened.`,
+      });
+      fetchSavedSnapshots().then((fresh) => {
+        if (fresh && fresh.length > 0) setHistoryList(fresh);
+      });
+    }
   };
 
   // Clear all players from the active table
@@ -506,11 +530,14 @@ const PokerLedger = ({
     const updatedHistory = saveSessionToHistory(finalizedSession);
     setHistoryList(updatedHistory);
 
-    // 2. Clear active table storage and state completely
+    // 2. Save cloud snapshot to Supabase
+    saveSnapshotToCloud(finalizedSession, roomCode);
+
+    // 3. Clear active table storage and state completely
     clearActiveSession();
     setSession(createDefaultSession());
 
-    // 3. Switch back to Tab 1 (clean table)
+    // 4. Switch back to Tab 1 (clean table)
     setActiveTab("banker");
     setIsEndGameDialogOpen(false);
 
@@ -518,7 +545,7 @@ const PokerLedger = ({
     triggerHaptic(40);
     toast({
       title: "Game Ended & Archived! 🏆",
-      description: "Settlement saved in History. Table is completely cleared with zero players for the next match.",
+      description: "Settlement saved in History and Cloud. Table is completely cleared with zero players for the next match.",
     });
   };
 

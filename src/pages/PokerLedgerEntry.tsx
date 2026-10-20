@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import {
@@ -14,6 +14,9 @@ import {
   Sun,
   Moon,
   Loader2,
+  History,
+  ArrowRight,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +31,14 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { usePokerRoom } from "@/hooks/usePokerRoom";
-import { createDefaultSession } from "@/lib/poker/pokerLedger";
+import {
+  createDefaultSession,
+  fetchSavedSnapshots,
+  saveCurrentSession,
+  formatRupees,
+  formatChips,
+  type PokerLedgerSession,
+} from "@/lib/poker/pokerLedger";
 
 const PokerLedgerEntry = () => {
   const navigate = useNavigate();
@@ -42,6 +52,27 @@ const PokerLedgerEntry = () => {
   // Join Room Dialog
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [joinCode, setJoinCode] = useState("");
+
+  // Saved Games / Snapshots state
+  const [savedSnapshots, setSavedSnapshots] = useState<PokerLedgerSession[]>([]);
+  const [isLoadingSnapshots, setIsLoadingSnapshots] = useState(true);
+
+  // Load cloud snapshots on mount
+  useEffect(() => {
+    fetchSavedSnapshots().then((list) => {
+      setSavedSnapshots(list || []);
+      setIsLoadingSnapshots(false);
+    });
+  }, []);
+
+  const handleOpenSnapshot = (snap: PokerLedgerSession) => {
+    if (snap.roomCode) {
+      navigate(`/poker/ledger/room/${snap.roomCode}`);
+    } else {
+      saveCurrentSession(snap);
+      navigate("/poker/ledger/offline");
+    }
+  };
 
   const handleCreateRoom = async () => {
     const name = roomName.trim();
@@ -229,6 +260,86 @@ const PokerLedgerEntry = () => {
               </div>
             </div>
           </button>
+        </div>
+
+        {/* Saved Games & Snapshots Section (Public Cloud Access) */}
+        <div className="space-y-3 pt-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <History className="w-3.5 h-3.5 text-amber-500" />
+              Saved Games & Snapshots
+            </h2>
+            <span className="text-[11px] text-muted-foreground">
+              {isLoadingSnapshots ? "Loading..." : `${savedSnapshots.length} saved`}
+            </span>
+          </div>
+
+          {isLoadingSnapshots ? (
+            <div className="p-6 text-center text-xs text-muted-foreground glass-card rounded-2xl flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+              Loading saved games...
+            </div>
+          ) : savedSnapshots.length === 0 ? (
+            <div className="glass-card rounded-2xl p-5 text-center text-xs text-muted-foreground border-dashed border border-border/70 space-y-1">
+              <p className="font-semibold text-foreground">No saved games yet</p>
+              <p className="text-[11px] text-muted-foreground">
+                When a game snapshot is saved, it will appear here for all players to view anytime.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {savedSnapshots.map((snap) => {
+                const totalChips = snap.players.reduce(
+                  (sum, p) => sum + p.buyIns.reduce((s, b) => s + (Number(b.amount) || 0), 0),
+                  0
+                );
+                const totalRupees = Math.round(totalChips * (snap.chipRateRupees ?? 0.5) * 100) / 100;
+                const dateStr = new Date(snap.updatedAt || snap.createdAt || Date.now()).toLocaleDateString("en-IN", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                });
+
+                return (
+                  <div
+                    key={snap.id}
+                    onClick={() => handleOpenSnapshot(snap)}
+                    className="glass-card rounded-2xl p-4 border border-border/70 hover:border-amber-500/40 transition-all flex items-center justify-between gap-3 shadow-sm cursor-pointer group active:scale-[0.99]"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-foreground text-sm truncate">{snap.title}</span>
+                        {snap.roomCode && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold border border-amber-500/20">
+                            {snap.roomCode}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                        <span>{dateStr}</span>
+                        <span>•</span>
+                        <span>{snap.players.length} Players</span>
+                        <span>•</span>
+                        <span>
+                          Pot: <strong className="text-amber-600 dark:text-amber-400">{formatRupees(totalRupees)}</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-500/30 text-amber-700 dark:text-amber-400 group-hover:bg-amber-500/10 text-xs font-semibold h-9 px-3 rounded-xl shrink-0 gap-1"
+                    >
+                      <span>View</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

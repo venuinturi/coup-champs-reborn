@@ -1,3 +1,6 @@
+import { supabase } from "@/integrations/supabase/client";
+import { getBrowserId } from "./browserId";
+
 export interface BuyInRecord {
   id: string;
   amount: number; // in chips
@@ -55,6 +58,7 @@ export interface PokerLedgerSession {
   players: LedgerPlayer[];
   completedTransactionIds: string[];
   isEnded?: boolean;
+  roomCode?: string;
 }
 
 export interface SettlementResult {
@@ -479,5 +483,126 @@ export const deleteSessionFromHistory = (sessionId: string): PokerLedgerSession[
   } catch (e) {
     console.error("Failed to delete session from history", e);
     return [];
+  }
+};
+
+// Save snapshot to Supabase game_rooms so it's accessible to all users across devices
+export const saveSnapshotToCloud = async (
+  session: PokerLedgerSession,
+  existingRoomCode?: string
+): Promise<string | null> => {
+  try {
+    const code = existingRoomCode || session.roomCode;
+    const sessionToSave: PokerLedgerSession = {
+      ...session,
+      isEnded: true,
+      updatedAt: Date.now(),
+      roomCode: code || session.roomCode,
+    };
+
+    // If game has a room code, update that room in game_rooms
+    if (code) {
+      const { error } = await supabase
+        .from("game_rooms")
+        .update({
+          host_name: session.title,
+          status: "finished",
+          game_state: {
+            type: "poker_ledger",
+            room_name: session.title,
+            session_data: sessionToSave,
+            is_snapshot: true,
+          } as any,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("room_code", code);
+
+      if (!error) return code;
+    }
+
+    // Otherwise create a new snapshot room record in game_rooms
+    let uid = getBrowserId();
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (authSession?.user?.id) uid = authSession.user.id;
+    } catch {}
+
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let snapCode = "PK";
+    for (let i = 0; i < 4; i++) snapCode += chars[Math.floor(Math.random() * chars.length)];
+
+    const snapSession = { ...sessionToSave, roomCode: snapCode };
+    const { data: newRoom, error: insertError } = await supabase
+      .from("game_rooms")
+      .insert({
+        room_code: snapCode,
+        host_id: uid,
+        host_name: session.title,
+        status: "finished",
+        max_players: 20,
+        game_state: {
+          type: "poker_ledger",
+          room_name: session.title,
+          session_data: snapSession,
+          is_snapshot: true,
+        } as any,
+      })
+      .select()
+      .single();
+
+    if (!insertError && newRoom) {
+      return snapCode;
+    }
+  } catch (err) {
+    console.error("Failed to save snapshot to cloud:", err);
+  }
+  return null;
+};
+
+// Fetch all saved cloud snapshots from game_rooms for public access
+export const fetchSavedSnapshots = async (): Promise<PokerLedgerSession[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("game_rooms")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(40);
+
+    if (error || !data) {
+      return loadSessionHistory();
+    }
+
+    const cloudSessions: PokerLedgerSession[] = [];
+    for (const row of data) {
+      const state = (row.game_state || {}) as any;
+      if (state.type === "poker_ledger" && state.session_data) {
+        const sess = state.session_data as PokerLedgerSession;
+        if (sess && Array.isArray(sess.players) && sess.players.length > 0) {
+          cloudSessions.push({
+            ...sess,
+            id: sess.id || row.id,
+            title: sess.title || state.room_name || row.host_name || "Poker Game",
+            roomCode: sess.roomCode || row.room_code,
+            updatedAt: new Date(row.updated_at || row.created_at).getTime(),
+          });
+        }
+      }
+    }
+
+    // Merge with local history cache
+    const local = loadSessionHistory();
+    const merged = [...cloudSessions];
+    for (const loc of local) {
+      const exists = merged.some(
+        (m) => m.id === loc.id || (m.roomCode && loc.roomCode && m.roomCode === loc.roomCode)
+      );
+      if (!exists) merged.push(loc);
+    }
+
+    merged.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+    return merged;
+  } catch (err) {
+    console.warn("Failed to fetch cloud snapshots:", err);
+    return loadSessionHistory();
   }
 };
