@@ -10,7 +10,7 @@ export interface LedgerPlayer {
   name: string;
   avatarPreset: string;
   buyIns: BuyInRecord[];
-  finalChips: number | null;
+  finalChips: number | string | null;
 }
 
 export interface SettlementTransaction {
@@ -160,7 +160,8 @@ export const calculateSettlement = (
   // 1. Calculate totals for each player in chips & rupees
   const rawPlayerSummaries = players.map((p) => {
     const totalBuyIn = p.buyIns.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-    const finalChips = p.finalChips !== null ? Number(p.finalChips) : 0;
+    const parsedFinal = p.finalChips !== null && p.finalChips !== "" ? Number(p.finalChips) : 0;
+    const finalChips = isNaN(parsedFinal) ? 0 : parsedFinal;
     const netChips = finalChips - totalBuyIn;
     const totalBuyInRupees = Math.round(totalBuyIn * chipRateRupees * 100) / 100;
     const finalRupees = Math.round(finalChips * chipRateRupees * 100) / 100;
@@ -320,7 +321,7 @@ export const formatSettlementReceipt = (
     const netChipsStr = formatChips(p.netChips, { includeSign: true });
 
     lines.push(
-      `${rank}. *${p.name}*: ${netRupeeStr} (${netChipsStr})${badge}\n   └ In: ${p.totalBuyIn} chips | Out: ${p.finalChips} chips`
+      `${rank}. *${p.name}*: ${netRupeeStr} (${netChipsStr})${badge}\n   └ In: ${p.totalBuyIn} chips | Out: ${formatChips(p.finalChips)}`
     );
   });
 

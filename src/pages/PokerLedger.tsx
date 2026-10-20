@@ -287,57 +287,61 @@ const PokerLedger = () => {
     });
   };
 
-  // Update final chips for a player
+  // Update final chips for a player (supports negative numbers & typing minus sign)
   const handleFinalChipsChange = (playerId: string, val: string) => {
-    const num = val === "" ? null : Math.max(0, Number(val));
-    setSession((prev) => ({
-      ...prev,
-      players: prev.players.map((p) => (p.id === playerId ? { ...p, finalChips: num } : p)),
-    }));
+    const trimmed = val.trim();
+    if (trimmed === "") {
+      setSession((prev) => ({
+        ...prev,
+        players: prev.players.map((p) => (p.id === playerId ? { ...p, finalChips: null } : p)),
+      }));
+      return;
+    }
+    // Allow single minus sign while typing or valid integers/decimals (including negative)
+    if (trimmed === "-" || /^-?\d*\.?\d*$/.test(trimmed)) {
+      setSession((prev) => ({
+        ...prev,
+        players: prev.players.map((p) => (p.id === playerId ? { ...p, finalChips: trimmed } : p)),
+      }));
+    }
   };
 
-  // Quick chip increment
-  const handleAddChips = (playerId: string, delta: number) => {
-    setSession((prev) => ({
-      ...prev,
-      players: prev.players.map((p) => {
-        if (p.id !== playerId) return p;
-        const current = p.finalChips ?? 0;
-        return { ...p, finalChips: Math.max(0, current + delta) };
-      }),
-    }));
-    sounds.chipPlace();
-    triggerHaptic(15);
-  };
-
-  // Set busted (0 chips)
-  const handleSetBusted = (playerId: string) => {
-    setSession((prev) => ({
-      ...prev,
-      players: prev.players.map((p) => (p.id === playerId ? { ...p, finalChips: 0 } : p)),
-    }));
-    sounds.buttonClick();
-    triggerHaptic(20);
-  };
-
-  // Auto-balance discrepancy
+  // Auto-balance discrepancy with exact chip balancing and support for negative final chips
   const handleAutoBalance = () => {
     if (settlement.isBalanced || session.players.length === 0) return;
-    const diff = settlement.discrepancy;
-    const adjustmentPerPlayer = Math.round((diff / session.players.length) * 100) / 100;
+    const totalDiff = Math.round(settlement.discrepancy * 100) / 100;
+    const n = session.players.length;
+    if (n === 0 || Math.abs(totalDiff) < 0.001) return;
+
+    // Convert to cents to guarantee exact integer distribution without precision leaks
+    const totalCents = Math.round(totalDiff * 100);
+    const baseCents = Math.trunc(totalCents / n);
+    let remCents = totalCents - (baseCents * n);
 
     setSession((prev) => ({
       ...prev,
       players: prev.players.map((p) => {
-        const cur = p.finalChips ?? 0;
-        return { ...p, finalChips: Math.max(0, Math.round((cur - adjustmentPerPlayer) * 100) / 100) };
+        const cur = (p.finalChips !== null && p.finalChips !== "" && !isNaN(Number(p.finalChips)))
+          ? Number(p.finalChips)
+          : 0;
+        let extra = 0;
+        if (remCents > 0) {
+          extra = 1;
+          remCents--;
+        } else if (remCents < 0) {
+          extra = -1;
+          remCents++;
+        }
+        const adj = (baseCents + extra) / 100;
+        const newFinal = Math.round((cur - adj) * 100) / 100;
+        return { ...p, finalChips: newFinal };
       }),
     }));
 
     sounds.notification();
     toast({
       title: "Table Auto-Balanced",
-      description: `Adjusted each player's stack by ~${formatChips(Math.abs(adjustmentPerPlayer))} to match pot.`,
+      description: `Adjusted each player's stack by ~${formatChips(Math.round(Math.abs(totalDiff / n) * 100) / 100)} to match pot. Discrepancy resolved.`,
     });
   };
 
@@ -1018,14 +1022,18 @@ const PokerLedger = () => {
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Final Chip Counts ({session.players.length} players)
                 </h3>
-                <span className="text-[11px] text-muted-foreground">Type chips or tap quick buttons</span>
+                <span className="text-[11px] text-muted-foreground">Enter final chip count</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 {session.players.map((player) => {
                   const totalPlayerChips = player.buyIns.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
                   const finalVal = player.finalChips !== null ? player.finalChips : "";
-                  const netChips = (player.finalChips ?? 0) - totalPlayerChips;
+                  const playerFinalNum =
+                    player.finalChips !== null && player.finalChips !== "" && !isNaN(Number(player.finalChips))
+                      ? Number(player.finalChips)
+                      : 0;
+                  const netChips = playerFinalNum - totalPlayerChips;
                   const netRupees = Math.round(netChips * (session.chipRateRupees ?? 0.5) * 100) / 100;
 
                   return (
@@ -1063,44 +1071,17 @@ const PokerLedger = () => {
                         </div>
                       </div>
 
-                      {/* Input & Quick Buttons for Mobile */}
-                      <div className="flex items-center gap-1.5">
-                        <div className="relative flex-1">
-                          <Coins className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            type="number"
-                            inputMode="numeric"
-                            placeholder="Final Chips"
-                            value={finalVal}
-                            onChange={(e) => handleFinalChipsChange(player.id, e.target.value)}
-                            className="pl-9 bg-muted/40 border-border/50 text-sm font-semibold h-10"
-                          />
-                        </div>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAddChips(player.id, 100)}
-                          className="text-xs h-10 px-2.5 border-border/60"
-                        >
-                          +100
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAddChips(player.id, (session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400)}
-                          className="text-xs h-10 px-2.5 border-border/60 font-semibold"
-                        >
-                          +{(session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleSetBusted(player.id)}
-                          className="text-xs h-10 px-2 text-red-400 hover:bg-red-500/10 shrink-0"
-                        >
-                          Bust (0)
-                        </Button>
+                      {/* Final Chips Input */}
+                      <div className="relative">
+                        <Coins className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="Final Chips"
+                          value={finalVal}
+                          onChange={(e) => handleFinalChipsChange(player.id, e.target.value)}
+                          className="pl-9 bg-muted/40 border-border/50 text-sm font-semibold h-10"
+                        />
                       </div>
                     </div>
                   );
@@ -1303,7 +1284,7 @@ const PokerLedger = () => {
                           {p.isWhale && <span className="text-xs">🐳</span>}
                         </div>
                         <p className="text-[11px] text-muted-foreground truncate">
-                          In: {p.totalBuyIn} chips ({formatRupees(p.totalBuyInRupees)}) • Out: {p.finalChips} chips
+                          In: {p.totalBuyIn} chips ({formatRupees(p.totalBuyInRupees)}) • Out: {formatChips(p.finalChips)}
                         </p>
                       </div>
                     </div>
