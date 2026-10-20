@@ -79,11 +79,37 @@ const triggerHaptic = (duration: number = 20) => {
   }
 };
 
-const PokerLedger = () => {
+// Room mode props (optional — when undefined, runs in offline/localStorage mode)
+interface PokerLedgerProps {
+  roomMode?: boolean;
+  isRoomCreator?: boolean;
+  roomSession?: PokerLedgerSession;
+  onRoomSessionChange?: (session: PokerLedgerSession) => void;
+  roomCode?: string;
+  roomName?: string;
+}
+
+const PokerLedger = ({
+  roomMode = false,
+  isRoomCreator = false,
+  roomSession,
+  onRoomSessionChange,
+  roomCode,
+  roomName,
+}: PokerLedgerProps) => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-  const [session, setSession] = useState<PokerLedgerSession>(loadCurrentSession);
+
+  // In room mode: session is driven by roomSession prop (viewers get live updates)
+  // In offline mode: session is loaded from localStorage
+  const [session, setSession] = useState<PokerLedgerSession>(() => {
+    if (roomMode && roomSession) return roomSession;
+    return loadCurrentSession();
+  });
   const [activeTab, setActiveTab] = useState<"banker" | "cashout" | "settlement" | "history">("banker");
+
+  // Whether the user can edit (only creator in room mode, or always in offline mode)
+  const canEdit = roomMode ? isRoomCreator : true;
 
   // Quick Add Player state
   const [newPlayerName, setNewPlayerName] = useState("");
@@ -116,6 +142,13 @@ const PokerLedger = () => {
   // History list
   const [historyList, setHistoryList] = useState<PokerLedgerSession[]>(loadSessionHistory);
 
+  // Sync roomSession prop into local state for viewers (when room data updates via Realtime)
+  useEffect(() => {
+    if (roomMode && !isRoomCreator && roomSession) {
+      setSession(roomSession);
+    }
+  }, [roomMode, isRoomCreator, roomSession]);
+
   // Normalize defaultBuyIn if it was 1000
   useEffect(() => {
     if (session.defaultBuyIn === 1000) {
@@ -123,10 +156,18 @@ const PokerLedger = () => {
     }
   }, [session.defaultBuyIn]);
 
-  // Auto-save on change
+  // Auto-save on change (offline mode: localStorage, room mode: push to Supabase)
   useEffect(() => {
-    saveCurrentSession(session);
-  }, [session]);
+    if (roomMode) {
+      // In room mode, creator pushes changes to Supabase via callback
+      if (isRoomCreator && onRoomSessionChange) {
+        onRoomSessionChange(session);
+      }
+      // Don't save to localStorage in room mode
+    } else {
+      saveCurrentSession(session);
+    }
+  }, [session, roomMode, isRoomCreator, onRoomSessionChange]);
 
   // Compute settlement
   const settlement = useMemo(() => {
@@ -177,8 +218,18 @@ const PokerLedger = () => {
   const avgBuyInChips = session.players.length > 0 ? Math.round(totalPotChips / session.players.length) : 0;
   const avgBuyInRupees = Math.round(avgBuyInChips * (session.chipRateRupees ?? 0.5) * 100) / 100;
 
+  // Guard: prevents viewers from editing in room mode
+  const viewerGuard = (): boolean => {
+    if (!canEdit) {
+      toast({ title: "View Only", description: "Only the room host can make changes.", variant: "destructive" });
+      return true; // blocked
+    }
+    return false; // not blocked
+  };
+
   // Add new player
   const handleAddPlayer = () => {
+    if (viewerGuard()) return;
     if (!newPlayerName.trim()) {
       toast({ title: "Name required", description: "Please enter player name", variant: "destructive" });
       return;
@@ -209,6 +260,7 @@ const PokerLedger = () => {
 
   // Remove player
   const handleRemovePlayer = (id: string, name: string) => {
+    if (viewerGuard()) return;
     setSession((prev) => ({
       ...prev,
       players: prev.players.filter((p) => p.id !== id),
@@ -219,6 +271,7 @@ const PokerLedger = () => {
 
   // Quick 1x Re-buy (default 400 chips)
   const handleQuickRebuy = (playerId: string) => {
+    if (viewerGuard()) return;
     const amount = (session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400;
     setSession((prev) => ({
       ...prev,
@@ -250,6 +303,7 @@ const PokerLedger = () => {
 
   // Custom re-buy submit
   const handleCustomRebuySubmit = () => {
+    if (viewerGuard()) return;
     if (!rebuyPlayerId) return;
     const amount = Number(customRebuyAmount);
     if (!amount || amount <= 0) {
@@ -289,6 +343,7 @@ const PokerLedger = () => {
 
   // Update final chips for a player (supports negative numbers & typing minus sign)
   const handleFinalChipsChange = (playerId: string, val: string) => {
+    if (viewerGuard()) return;
     const trimmed = val.trim();
     if (trimmed === "") {
       setSession((prev) => ({
@@ -308,6 +363,7 @@ const PokerLedger = () => {
 
   // Auto-balance discrepancy with exact chip balancing and support for negative final chips
   const handleAutoBalance = () => {
+    if (viewerGuard()) return;
     if (settlement.isBalanced || session.players.length === 0) return;
     const totalDiff = Math.round(settlement.discrepancy * 100) / 100;
     const n = session.players.length;
@@ -347,6 +403,7 @@ const PokerLedger = () => {
 
   // Toggle transaction completed
   const handleToggleTransaction = (txId: string) => {
+    if (viewerGuard()) return;
     setSession((prev) => {
       const exists = prev.completedTransactionIds.includes(txId);
       const nextIds = exists
@@ -389,6 +446,7 @@ const PokerLedger = () => {
 
   // Clear all players from the active table
   const handleClearTable = () => {
+    if (viewerGuard()) return;
     if (session.players.length === 0) return;
     if (confirm("Remove all players and clear the table?")) {
       clearActiveSession();
@@ -404,6 +462,7 @@ const PokerLedger = () => {
 
   // Prompt modal confirmation to end game
   const handleEndGameClick = () => {
+    if (viewerGuard()) return;
     if (session.players.length === 0) {
       toast({ title: "Table is empty", description: "No players currently at the table." });
       return;
@@ -413,6 +472,7 @@ const PokerLedger = () => {
 
   // Confirm End Game from dialog - archives to history and ensures zero past players remain
   const confirmEndGameAndClearTable = () => {
+    if (viewerGuard()) return;
     // 1. Archive to history with isEnded: true
     const finalizedSession = {
       ...session,
@@ -440,6 +500,7 @@ const PokerLedger = () => {
 
   // Save edited buy-in amount from Audit Log
   const handleSaveEditedBuyIn = () => {
+    if (viewerGuard()) return;
     if (!editingLogItem) return;
     const amountNum = Number(editingLogItem.newAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
@@ -481,6 +542,7 @@ const PokerLedger = () => {
     playerName: string,
     isInitial: boolean
   ) => {
+    if (viewerGuard()) return;
     if (isInitial) {
       toast({
         title: "Cannot delete initial buy-in",
@@ -512,6 +574,7 @@ const PokerLedger = () => {
 
   // Reset table completely
   const handleResetGame = () => {
+    if (viewerGuard()) return;
     if (confirm("Reset table completely and remove all players?")) {
       clearActiveSession();
       setSession(createDefaultSession());
@@ -523,6 +586,7 @@ const PokerLedger = () => {
 
   // Save session settings
   const handleSaveSettings = () => {
+    if (viewerGuard()) return;
     const defaultBuyInNum = Number(editDefaultBuyIn) > 0 ? Number(editDefaultBuyIn) : 400;
     const rateNum = Number(editChipRateRupees) > 0 ? Number(editChipRateRupees) : 0.5;
     setSession((prev) => ({
@@ -677,15 +741,17 @@ const PokerLedger = () => {
                 {session.title}
               </span>
             </h1>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSettingsOpen(true)}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
-              title="Edit game title, date, or stakes"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </Button>
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsSettingsOpen(true)}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                title="Edit game title, date, or stakes"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+            )}
           </div>
           <div className="flex items-center justify-center gap-2 text-xs md:text-sm text-muted-foreground flex-wrap">
             <span className="px-2 py-0.5 rounded-md bg-muted/60 text-foreground font-medium flex items-center gap-1">
@@ -796,54 +862,62 @@ const PokerLedger = () => {
           {/* ================= TAB 1: BANKER & BUY-INS ================= */}
           <TabsContent value="banker" className="space-y-4 focus-visible:outline-none flex-1">
             {/* Quick Add Player Bar */}
-            <div className="glass-card rounded-2xl p-3.5 md:p-5 border border-border/50 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-                  <UserPlus className="w-4 h-4 text-red-400" />
-                  Add Player to Table
-                </h3>
-                <span className="text-[11px] text-muted-foreground">
-                  Starts with <strong className="text-foreground">{(session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400} chips</strong> ({formatRupees(((session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400) * (session.chipRateRupees ?? 0.5))})
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
-                <div className="sm:col-span-6">
-                  <Input
-                    placeholder="Enter player name (e.g. Rahul)"
-                    value={newPlayerName}
-                    onChange={(e) => setNewPlayerName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
-                    className="bg-muted/40 border-border/50 text-sm h-11"
-                  />
+            {canEdit ? (
+              <div className="glass-card rounded-2xl p-3.5 md:p-5 border border-border/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                    <UserPlus className="w-4 h-4 text-red-400" />
+                    Add Player to Table
+                  </h3>
+                  <span className="text-[11px] text-muted-foreground">
+                    Starts with <strong className="text-foreground">{(session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400} chips</strong> ({formatRupees(((session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400) * (session.chipRateRupees ?? 0.5))})
+                  </span>
                 </div>
 
-                <div className="sm:col-span-3">
-                  <div className="relative">
-                    <Coins className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+                  <div className="sm:col-span-6">
                     <Input
-                      type="number"
-                      inputMode="numeric"
-                      placeholder={`Chips (${(session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400})`}
-                      value={newPlayerBuyIn}
-                      onChange={(e) => setNewPlayerBuyIn(e.target.value)}
+                      placeholder="Enter player name (e.g. Rahul)"
+                      value={newPlayerName}
+                      onChange={(e) => setNewPlayerName(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
-                      className="pl-9 bg-muted/40 border-border/50 text-sm h-11 font-medium"
+                      className="bg-muted/40 border-border/50 text-sm h-11"
                     />
                   </div>
-                </div>
 
-                <div className="sm:col-span-3">
-                  <Button
-                    onClick={handleAddPlayer}
-                    className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-semibold text-sm h-11 gap-1.5 shadow-md shadow-red-500/10"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Player
-                  </Button>
+                  <div className="sm:col-span-3">
+                    <div className="relative">
+                      <Coins className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        placeholder={`Chips (${(session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400})`}
+                        value={newPlayerBuyIn}
+                        onChange={(e) => setNewPlayerBuyIn(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
+                        className="pl-9 bg-muted/40 border-border/50 text-sm h-11 font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <Button
+                      onClick={handleAddPlayer}
+                      className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-semibold text-sm h-11 gap-1.5 shadow-md shadow-red-500/10"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Player
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="glass-card rounded-2xl p-3.5 md:p-4 border border-blue-200/50 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 text-center">
+                <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                  👀 Viewing Mode: Table updates in real-time. Only the room host can add players or re-buys.
+                </p>
+              </div>
+            )}
 
             {/* Players Table / Roster */}
             <div className="space-y-2.5">
@@ -908,41 +982,43 @@ const PokerLedger = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
-                          {/* Quick 1x Rebuy (+400 chips) */}
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleQuickRebuy(player.id)}
-                            className="bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30 text-xs font-bold gap-1 h-9 px-2.5 rounded-xl"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            {(session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400}
-                          </Button>
+                        {canEdit && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* Quick 1x Rebuy (+400 chips) */}
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleQuickRebuy(player.id)}
+                              className="bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30 text-xs font-bold gap-1 h-9 px-2.5 rounded-xl"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              {(session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400}
+                            </Button>
 
-                          {/* Custom Rebuy */}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setRebuyPlayerId(player.id);
-                              setCustomRebuyAmount(String((session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400));
-                            }}
-                            className="text-xs h-9 px-2 text-muted-foreground hover:text-foreground rounded-xl"
-                          >
-                            Custom
-                          </Button>
+                            {/* Custom Rebuy */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setRebuyPlayerId(player.id);
+                                setCustomRebuyAmount(String((session.defaultBuyIn && session.defaultBuyIn !== 1000) ? session.defaultBuyIn : 400));
+                              }}
+                              className="text-xs h-9 px-2 text-muted-foreground hover:text-foreground rounded-xl"
+                            >
+                              Custom
+                            </Button>
 
-                          {/* Remove */}
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleRemovePlayer(player.id, player.name)}
-                            className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-xl"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
+                            {/* Remove */}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleRemovePlayer(player.id, player.name)}
+                              className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-xl"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1003,7 +1079,7 @@ const PokerLedger = () => {
                   </div>
                 </div>
 
-                {!settlement.isBalanced && session.players.length > 0 && (
+                {canEdit && !settlement.isBalanced && session.players.length > 0 && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -1022,7 +1098,9 @@ const PokerLedger = () => {
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Final Chip Counts ({session.players.length} players)
                 </h3>
-                <span className="text-[11px] text-muted-foreground">Enter final chip count</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {canEdit ? "Enter final chip count" : "Live stack count"}
+                </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
@@ -1077,10 +1155,11 @@ const PokerLedger = () => {
                         <Input
                           type="text"
                           inputMode="decimal"
-                          placeholder="Final Chips"
+                          placeholder={canEdit ? "Final Chips" : "Pending host entry"}
+                          disabled={!canEdit}
                           value={finalVal}
                           onChange={(e) => handleFinalChipsChange(player.id, e.target.value)}
-                          className="pl-9 bg-muted/40 border-border/50 text-sm font-semibold h-10"
+                          className="pl-9 bg-muted/40 border-border/50 text-sm font-semibold h-10 disabled:opacity-70 disabled:cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -1309,14 +1388,16 @@ const PokerLedger = () => {
 
             {/* Bottom Actions for Mobile */}
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2.5">
-              <Button
-                size="sm"
-                onClick={handleEndGameClick}
-                className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-bold text-xs md:text-sm gap-2 h-11 px-5 shadow-lg shadow-red-900/30"
-              >
-                <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                End Game & Clear Table
-              </Button>
+              {canEdit && (
+                <Button
+                  size="sm"
+                  onClick={handleEndGameClick}
+                  className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-bold text-xs md:text-sm gap-2 h-11 px-5 shadow-lg shadow-red-900/30"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                  End Game & Clear Table
+                </Button>
+              )}
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <Button
@@ -1481,27 +1562,29 @@ const PokerLedger = () => {
                       </div>
 
                       {/* Edit Button */}
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        onClick={() =>
-                          setEditingLogItem({
-                            playerId: item.playerId,
-                            buyInId: item.buyInId,
-                            playerName: item.playerName,
-                            currentAmount: item.amount,
-                            newAmount: String(item.amount),
-                            note: item.note,
-                          })
-                        }
-                        className="h-8 w-8 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
-                        title="Edit / Correct Amount"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() =>
+                            setEditingLogItem({
+                              playerId: item.playerId,
+                              buyInId: item.buyInId,
+                              playerName: item.playerName,
+                              currentAmount: item.amount,
+                              newAmount: String(item.amount),
+                              note: item.note,
+                            })
+                          }
+                          className="h-8 w-8 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                          title="Edit / Correct Amount"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
 
                       {/* Delete Button (only for re-buys) */}
-                      {!item.isInitial && (
+                      {canEdit && !item.isInitial && (
                         <Button
                           size="icon"
                           variant="ghost"
