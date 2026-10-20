@@ -139,6 +139,13 @@ const PokerLedger = ({
     note?: string;
   } | null>(null);
 
+  // Edit Player Dialog state
+  const [editingPlayer, setEditingPlayer] = useState<{
+    id: string;
+    name: string;
+    avatarPreset: string;
+  } | null>(null);
+
   // History list
   const [historyList, setHistoryList] = useState<PokerLedgerSession[]>(loadSessionHistory);
 
@@ -258,15 +265,32 @@ const PokerLedger = ({
     });
   };
 
-  // Remove player
-  const handleRemovePlayer = (id: string, name: string) => {
+  // Edit player (name and avatar preset)
+  const handleSaveEditedPlayer = () => {
     if (viewerGuard()) return;
+    if (!editingPlayer) return;
+    const trimmed = editingPlayer.name.trim();
+    if (!trimmed) {
+      toast({ title: "Name required", description: "Player name cannot be empty", variant: "destructive" });
+      return;
+    }
+
     setSession((prev) => ({
       ...prev,
-      players: prev.players.filter((p) => p.id !== id),
+      players: prev.players.map((p) =>
+        p.id === editingPlayer.id
+          ? { ...p, name: trimmed, avatarPreset: editingPlayer.avatarPreset || p.avatarPreset }
+          : p
+      ),
     }));
-    triggerHaptic(15);
-    toast({ title: "Player removed", description: `${name} has been removed` });
+
+    toast({
+      title: "Player Updated",
+      description: `Player details updated to "${trimmed}".`,
+    });
+    setEditingPlayer(null);
+    sounds.notification();
+    triggerHaptic(20);
   };
 
   // Quick 1x Re-buy (default 400 chips)
@@ -546,7 +570,7 @@ const PokerLedger = ({
     if (isInitial) {
       toast({
         title: "Cannot delete initial buy-in",
-        description: "To remove this player completely from the table, tap 'Remove' on their card above.",
+        description: "Initial buy-in cannot be deleted. You can edit the player's name or correct the buy-in amount with the Edit button.",
         variant: "destructive",
       });
       return;
@@ -925,20 +949,7 @@ const PokerLedger = ({
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Players at Table ({session.players.length})
                 </h3>
-                <div className="flex items-center gap-2">
-                  {session.players.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearTable}
-                      className="text-xs text-muted-foreground hover:text-destructive h-7 px-2 gap-1"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Clear Table
-                    </Button>
-                  )}
-                  <span className="text-[11px] text-muted-foreground hidden sm:inline">Tap "+ Re-buy" for {session.defaultBuyIn} chips</span>
-                </div>
+                <span className="text-[11px] text-muted-foreground">Tap "+ Re-buy" for {session.defaultBuyIn} chips</span>
               </div>
 
               {session.players.length === 0 ? (
@@ -1008,14 +1019,21 @@ const PokerLedger = ({
                               Custom
                             </Button>
 
-                            {/* Remove */}
+                            {/* Edit Player */}
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => handleRemovePlayer(player.id, player.name)}
-                              className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-xl"
+                              onClick={() =>
+                                setEditingPlayer({
+                                  id: player.id,
+                                  name: player.name,
+                                  avatarPreset: player.avatarPreset,
+                                })
+                              }
+                              className="h-9 w-9 text-muted-foreground hover:text-amber-500 rounded-xl"
+                              title="Edit Player Name or Avatar"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Pencil className="w-3.5 h-3.5" />
                             </Button>
                           </div>
                         )}
@@ -1799,6 +1817,73 @@ const PokerLedger = ({
             </Button>
             <Button onClick={handleCustomRebuySubmit} className="flex-1 bg-red-600 hover:bg-red-700 text-xs h-10 font-semibold">
               Add Re-buy
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Player Modal */}
+      <Dialog open={!!editingPlayer} onOpenChange={(open) => !open && setEditingPlayer(null)}>
+        <DialogContent className="glass-card border-border/60 max-w-sm w-[92vw] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-amber-500" />
+              Edit Player
+            </DialogTitle>
+          </DialogHeader>
+          {editingPlayer && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Player Name</Label>
+                <Input
+                  value={editingPlayer.name}
+                  onChange={(e) =>
+                    setEditingPlayer((prev) => (prev ? { ...prev, name: e.target.value } : null))
+                  }
+                  placeholder="Enter player name"
+                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveEditedPlayer()}
+                  className="text-sm font-semibold h-11"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Avatar Style</Label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {DEFAULT_AVATARS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() =>
+                        setEditingPlayer((prev) => (prev ? { ...prev, avatarPreset: preset } : null))
+                      }
+                      className={cn(
+                        "p-1 rounded-xl transition-all",
+                        editingPlayer.avatarPreset === preset
+                          ? "ring-2 ring-red-500 bg-red-500/10 scale-110"
+                          : "opacity-70 hover:opacity-100 hover:scale-105"
+                      )}
+                    >
+                      <PlayerAvatar preset={preset} size="sm" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="flex flex-row gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setEditingPlayer(null)}
+              className="flex-1 text-xs h-10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEditedPlayer}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs h-10"
+            >
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
